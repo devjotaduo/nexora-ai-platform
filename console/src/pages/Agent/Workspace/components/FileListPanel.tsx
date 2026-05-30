@@ -91,7 +91,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({
           {files.length > 0 ? (
             <DndContext
               sensors={sensors}
-              coluser04onDetection={closestCenter}
+              collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
             >
               <SortableContext

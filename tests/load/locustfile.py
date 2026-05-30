@@ -1,5 +1,5 @@
 """
-Nexora AI Platform 100 用户并发压力测试
+Nexora AIops 平台 100 用户并发压力测试
 模拟真实用户操作：登录 → 列表查询 → 聊天 → 审计 → 审批
 区分 admin / operator 角色权限，operator 只访问已授权智能体
 """

@@ -218,7 +218,7 @@ terraform {
 - Tests fail when run in parallel
 - Error: "ResourceAlreadyExistsException"
 
-**Cause:** Resource naming coluser04ons
+**Cause:** Resource naming collisions
 
 **Solution:**
 

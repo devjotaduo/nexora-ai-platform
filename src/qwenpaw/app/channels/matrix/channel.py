@@ -480,7 +480,7 @@ class MatrixChannel(BaseChannel):
         resolved_device_id: str,
     ) -> dict[str, Any]:
         # matrix-nio login() signature differs across versions. Build
-        # kwargs from runtime signature to avoid argument coluser04ons.
+        # kwargs from runtime signature to avoid argument collisions.
         login_sig = inspect.signature(self._client.login)
         login_kwargs: dict[str, Any] = {}
         login_params = login_sig.parameters

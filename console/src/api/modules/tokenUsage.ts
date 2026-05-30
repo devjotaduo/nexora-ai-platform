@@ -31,7 +31,7 @@ export const tokenUsageApi = {
   getTokenUsageDetails: (params: GetTokenUsageParams) =>
     request<TokenUsageRecord[]>(`/token-usage/details${buildQuery(params)}`),
 
-  // Per-user token usage (CJ AIops PG)
+  // Per-user token usage (Nexora PG)
   getTokenUsageByUser: (params: { start_date: string; end_date: string }) => {
     const search = new URLSearchParams({
       start_date: params.start_date,

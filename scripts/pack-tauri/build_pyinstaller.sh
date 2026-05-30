@@ -71,7 +71,7 @@ echo "== Installing project dependencies =="
 install_python_packages -e ".[full]"
 echo "Project dependencies installed with full extras"
 
-# Fix agent-client-protocol namespace coluser04on
+# Fix agent-client-protocol namespace collision
 # PyPI has an empty 'acp' stub that shadows the real package
 if ! "$PYTHON_BIN" -c "from acp import Agent" 2> /dev/null; then
     echo "Fixing agent-client-protocol namespace..."

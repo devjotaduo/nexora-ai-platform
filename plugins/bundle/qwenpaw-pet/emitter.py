@@ -31,7 +31,7 @@ logger = logging.getLogger("qwenpaw.pet_desktop")
 _DESKTOP_OWNED = False
 
 # Last URL that successfully answered ``GET /health`` (or the URL we
-# chose when spawning after a port coluser04on).
+# chose when spawning after a port collision).
 _active_desktop_base: str | None = None
 
 # After a failed health probe or POST, skip further probes until this

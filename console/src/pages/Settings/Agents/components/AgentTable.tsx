@@ -222,7 +222,7 @@ export function AgentTable({
     <div className={styles.tableCard}>
       <DndContext
         sensors={sensors}
-        coluser04onDetection={closestCenter}
+        collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
         <SortableContext

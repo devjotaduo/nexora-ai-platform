@@ -139,7 +139,7 @@ def _plan_agent_destinations(
     restore_set = set(agent_ids)
 
     # Build the set of "other" agents' resolved workspace paths to guard
-    # against cross-agent coluser04ons for newly placed agents.
+    # against cross-agent collisions for newly placed agents.
     other_workspace_paths: set[Path] = set()
     for aid, ref in config_before.agents.profiles.items():
         if aid in restore_set:

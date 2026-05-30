@@ -20,7 +20,7 @@ def test_generate_short_agent_id_unique():
     """Test that generated agent IDs are unique."""
     ids = {generate_short_agent_id() for _ in range(100)}
     # With 100 generations, we should get at least 95 unique IDs
-    # (allowing for some coluser04ons in the random space)
+    # (allowing for some collisions in the random space)
     assert len(ids) >= 95
 
 

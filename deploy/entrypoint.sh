@@ -43,16 +43,6 @@ else
   echo "Config found in ${QWENPAW_WORKING_DIR}, skipping initialization."
 fi
 
-# Run Alembic migrations if NEXORA_DB_URL is set.
-if [ -n "${NEXORA_DB_URL:-}" ]; then
-    echo "Running database migrations..."
-    if alembic upgrade head; then
-        echo "Database migrations complete."
-    else
-        echo "WARNING: Database migration failed. Tables may be created on first access." >&2
-    fi
-fi
-
 export QWENPAW_PORT="${QWENPAW_PORT:-8088}"
 warn_if_auth_off_container_bind
 envsubst '${QWENPAW_PORT}' \

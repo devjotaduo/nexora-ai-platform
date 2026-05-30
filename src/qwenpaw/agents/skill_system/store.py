@@ -591,7 +591,7 @@ def suggest_conflict_name(
     skill_name: str,
     existing_names: set[str] | None = None,
 ) -> str:
-    """Return a timestamp-suffixed rename suggestion for coluser04ons.
+    """Return a timestamp-suffixed rename suggestion for collisions.
 
     Strips any previously-appended timestamp suffixes from *skill_name*
     before generating a new one, so names never accumulate multiple

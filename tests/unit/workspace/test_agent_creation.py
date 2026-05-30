@@ -24,20 +24,20 @@ def test_agent_creation_auto_generates_short_id():
     # This test verifies the precondition
 
 
-def test_generate_short_id_coluser04on_handling():
-    """Test that agent creation can handle ID coluser04ons."""
+def test_generate_short_id_collision_handling():
+    """Test that agent creation can handle ID collisions."""
     # Generate some IDs
     existing_ids = {generate_short_agent_id() for _ in range(5)}
 
     # Mock that first few attempts collide
-    coluser04on_count = 0
+    collision_count = 0
     original_generate = generate_short_agent_id
 
     def mock_generate():
-        nonlocal coluser04on_count
-        if coluser04on_count < 3:
-            coluser04on_count += 1
-            # Return an existing ID to simulate coluser04on
+        nonlocal collision_count
+        if collision_count < 3:
+            collision_count += 1
+            # Return an existing ID to simulate collision
             return list(existing_ids)[0]
         # Return a new unique ID
         return original_generate()

@@ -27,7 +27,7 @@ export function defaultCreateScope(agentIds: string[]): {
 
 /**
  * Builds the scope and agents list used for the automatic pre-restore backup.
- * Always backs up everything, including secrets. CJ AIops stores users, roles,
+ * Always backs up everything, including secrets. Nexora stores users, roles,
  * governance policies, audit data, and signing keys under the secret directory,
  * so a pre-restore snapshot must include it to be a real rollback point.
  *

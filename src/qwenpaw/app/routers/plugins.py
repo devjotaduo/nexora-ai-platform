@@ -41,7 +41,7 @@ def _list_plugins_from_disk() -> list[dict]:
     """Read plugin manifests directly from the plugins directory on disk.
 
     Used as a fallback when the plugin loader has not finished
-    initiauser04ng (e.g. the frontend opens before the backend startup
+    initialising (e.g. the frontend opens before the backend startup
     coroutine completes).  Returns the same shape as the normal list
     endpoint so the frontend does not need to handle a different schema.
     """
@@ -490,7 +490,7 @@ def _collect_plugin_runtime_ids(
 async def list_plugins(request: Request):
     """Return every loaded plugin with basic metadata and entry points.
 
-    If the plugin loader has not yet finished initiauser04ng (backend
+    If the plugin loader has not yet finished initialising (backend
     still starting up when the frontend first requests the list), the
     response is built by scanning the plugins directory on disk.
     """

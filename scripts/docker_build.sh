@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Build Docker image (includes console frontend build in multi-stage).
 # Run from repo root: bash scripts/docker_build.sh [IMAGE_TAG] [EXTRA_ARGS...]
-# Example: bash scripts/docker_build.sh nexora-ai-platform:latest
-#          bash scripts/docker_build.sh ghcr.io/your-org/nexora-ai-platform:latest --no-cache
+# Example: bash scripts/docker_build.sh nexora-platform:latest
+#          bash scripts/docker_build.sh ghcr.io/lb08111/nexora-platform:latest --no-cache
 #
 # By default the Docker image excludes imessage (macOS-only).
 # Override via:
@@ -14,7 +14,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 DOCKERFILE="${DOCKERFILE:-$REPO_ROOT/deploy/Dockerfile}"
-TAG="${1:-nexora-ai-platform:latest}"
+TAG="${1:-nexora-platform:latest}"
 shift || true
 
 # Channels to exclude from the image (default: imessage).

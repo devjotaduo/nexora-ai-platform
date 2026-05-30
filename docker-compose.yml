@@ -35,8 +35,8 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile
-    image: nexora-ai-platform:latest
-    container_name: nexora-ai-platform
+    image: nexora-platform:latest
+    container_name: nexora-platform
     restart: unless-stopped
     cpus: "${NEXORA_APP_CPUS:-2.0}"
     mem_limit: "${NEXORA_APP_MEMORY_LIMIT:-4g}"

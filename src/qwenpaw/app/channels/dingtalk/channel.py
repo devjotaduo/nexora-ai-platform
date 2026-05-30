@@ -394,7 +394,7 @@ class DingTalkChannel(BaseChannel):
     def to_handle_from_target(self, *, user_id: str, session_id: str) -> str:
         # Key by session_id (short suffix of conversation_id) so cron can
         # use the same session_id to look up stored sessionWebhook.
-        # For DM, prefix with user_id to avoid coluser04on when different
+        # For DM, prefix with user_id to avoid collision when different
         # conversation_ids share the same suffix.
         return (
             f"dingtalk:sw:{user_id}_{session_id}"
@@ -412,7 +412,7 @@ class DingTalkChannel(BaseChannel):
             session_id = getattr(request, "session_id", None)
             if session_id:
                 conversation_type = meta.get("conversation_type")
-                # For DM, use user_id + suffix as key to avoid coluser04on
+                # For DM, use user_id + suffix as key to avoid collision
                 # when different conversation_ids share the same suffix.
                 # For group, use suffix-only key (shared across users).
                 if conversation_type == "dm":
