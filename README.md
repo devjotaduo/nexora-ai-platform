@@ -97,6 +97,83 @@ Nexora AI Platform is an enterprise-grade AI workspace built on [QwenPaw](https:
 
 ---
 
+## Technical Design
+
+> Full details in [Technical Solution](docs/technical-solution.md)
+
+### Three-Layer Permission Model
+
+Nexora enforces access control through three cascading layers — each request must pass all applicable checks before reaching the agent runtime:
+
+```
+Layer 1 — Platform Access          Layer 2 — Agent Authorization       Layer 3 — Capability Approval
+┌──────────────────────┐           ┌──────────────────────┐           ┌──────────────────────┐
+│  User authenticates  │           │  Check agent_grants  │           │  Evaluate approval   │
+│  via JWT             │──pass──▶  │  for this user       │──pass──▶  │  policy for this     │
+│                      │           │                      │           │  tool invocation     │
+│  RBAC role checked   │           │  Only granted agents │           │  Low risk → execute  │
+│  against route       │           │  are visible & usable│           │  High risk → queue   │
+└──────────────────────┘           └──────────────────────┘           └──────────────────────┘
+        │ fail                             │ fail                             │ pending
+        ▼                                  ▼                                  ▼
+   401 / 403                          403 Forbidden                    Approval Request
+   + audit log                        + audit log                      → Admin reviews
+                                                                       → Execute or reject
+                                                                       + audit log
+```
+
+### Request Lifecycle
+
+```
+Browser ──▶ FastAPI ──▶ JWT Middleware ──▶ RBAC Guard ──▶ Agent Grant Check
+                                                              │
+                        ┌─────────────────────────────────────┘
+                        ▼
+               Approval Policy Check ──▶ QwenPaw Agent Runtime ──▶ LLM Provider
+                        │                        │                       │
+                        ▼                        ▼                       ▼
+                  Approval Queue          Tool Execution          Token Recording
+                        │                        │                       │
+                        └────────────────────────┼───────────────────────┘
+                                                 ▼
+                                           PostgreSQL
+                                    (audit · tokens · approvals)
+```
+
+### Token Usage Tracking
+
+Token consumption is attributed to the **authenticated JWT user** (not the chat payload sender), using Python's `ContextVar` to propagate identity through the async call chain:
+
+```
+JWT Middleware                    Console Router                   Model Wrapper
+─────────────                    ──────────────                   ─────────────
+request.state.user = "alice"  →  set_current_actor("alice")   →  get_current_actor()
+                                                                       │
+                                                                       ▼
+                                                              INSERT INTO nexora_token_usage
+                                                              (actor="alice", model, tokens)
+                                                              via background daemon thread
+```
+
+Records are aggregated by user, agent, model, and date — visualized in the Token Usage dashboard with trend charts and per-user breakdown tables.
+
+### PostgreSQL Schema
+
+All enterprise data is persisted in PostgreSQL with versioned migrations (Alembic):
+
+| Table | Purpose |
+|-------|---------|
+| `nexora_users` | User accounts, password hashes, roles |
+| `nexora_agent_grants` | User ↔ Agent authorization mapping |
+| `nexora_audit_events` | Full audit trail (indexed by date, actor) |
+| `nexora_approval_requests` | Capability approval queue and results |
+| `nexora_capability_policies` | Risk-based approval policy configuration |
+| `nexora_governance` | Agent ↔ Tool/MCP/Skill resource policies |
+| `nexora_token_usage` | LLM token consumption records |
+| `nexora_runtime_config` | Runtime configuration key-value store |
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -362,6 +439,62 @@ Nexora AI Platform 是基于 [QwenPaw](https://github.com/agentscope-ai/QwenPaw)
 | **Token 消耗分析** | 按用户、智能体、模型、日期维度追踪 LLM Token 消耗，可视化仪表盘 |
 | **安全治理** | 资源策略、工具扫描器、集中化密钥管理 |
 | **PostgreSQL 后端** | 全部企业数据（用户、授权、审计、配置、Token）存储在 PostgreSQL |
+
+---
+
+## 技术设计
+
+> 完整文档见 [技术方案](docs/technical-solution.md)
+
+### 三层权限模型
+
+Nexora 通过三层级联访问控制保护平台资源 — 每个请求必须逐层通过所有检查：
+
+```
+第一层 — 平台访问                第二层 — 智能体授权              第三层 — 能力审批
+┌──────────────────┐            ┌──────────────────┐            ┌──────────────────┐
+│ 用户 JWT 认证    │            │ 检查 agent_grants│            │ 评估审批策略     │
+│                  │──通过──▶   │ 是否授权该智能体 │──通过──▶   │                  │
+│ RBAC 角色校验    │            │                  │            │ 低风险 → 直接执行│
+│ 路由级权限守卫   │            │ 仅展示已授权智能体│            │ 高风险 → 进入审批│
+└──────────────────┘            └──────────────────┘            └──────────────────┘
+       │ 拒绝                          │ 拒绝                          │ 待审批
+       ▼                               ▼                               ▼
+   401 / 403                      403 禁止访问                    审批请求 → 管理员审批
+   + 审计日志                     + 审计日志                      → 通过或拒绝 + 审计日志
+```
+
+### Token 消耗追踪
+
+Token 消耗归属到 **JWT 认证用户**（而非聊天负载中的 sender_id），通过 Python `ContextVar` 在异步调用链中传递身份：
+
+```
+JWT 中间件                      Console 路由                     模型包装器
+──────────                      ──────────                       ──────────
+request.state.user = "alice" → set_current_actor("alice")  →  get_current_actor()
+                                                                      │
+                                                                      ▼
+                                                             INSERT INTO nexora_token_usage
+                                                             (actor="alice", model, tokens)
+                                                             后台守护线程写入，不阻塞请求
+```
+
+按用户、智能体、模型、日期四维聚合，在 Token 消耗仪表盘中可视化展示趋势图和用户明细表。
+
+### PostgreSQL 数据表
+
+全部企业数据通过 Alembic 版本化迁移持久化在 PostgreSQL：
+
+| 表名 | 用途 |
+|------|------|
+| `nexora_users` | 用户账号、密码哈希、角色 |
+| `nexora_agent_grants` | 用户 ↔ 智能体授权映射 |
+| `nexora_audit_events` | 全链路审计日志（按日期、用户索引） |
+| `nexora_approval_requests` | 能力审批队列与结果 |
+| `nexora_capability_policies` | 基于风险的审批策略配置 |
+| `nexora_governance` | 智能体 ↔ 工具/MCP/Skill 资源策略 |
+| `nexora_token_usage` | LLM Token 消耗记录 |
+| `nexora_runtime_config` | 运行时配置键值存储 |
 
 ---
 
