@@ -14,6 +14,17 @@
 
 ---
 
+## Why "Nexora"?
+
+**Nexora** = **Nex**us + **ora** (edge, frontier)
+
+- **Nexus** — a central hub where things connect. Nexora is the nexus where AI agents, enterprise tools, team members, and messaging channels converge into a unified workspace.
+- **Ora** — derived from Latin *ora* (edge, boundary), representing the frontier of AI-driven enterprise operations.
+
+Together, the name embodies the platform's mission: **the central hub at the frontier of enterprise AI** — connecting intelligent agents with the people and tools that run your business, under controlled governance.
+
+---
+
 ## Overview
 
 Nexora AI Platform is an enterprise-grade AI workspace built on [QwenPaw](https://github.com/agentscope-ai/QwenPaw). It inherits all the core capabilities of QwenPaw — multi-agent orchestration, multi-channel messaging, skill extensions, local model support, and memory-evolving agents — while adding enterprise-essential layers: multi-tenant access control, security governance, audit logging, and token usage analytics.
@@ -576,6 +587,17 @@ Built on [QwenPaw](https://github.com/agentscope-ai/QwenPaw) by [AgentScope AI](
 **企业级 AI 工作台**
 
 </div>
+
+---
+
+## 命名理念
+
+**Nexora** = **Nex**us + **ora**（边界、前沿）
+
+- **Nexus** — 连接的枢纽。Nexora 是 AI 智能体、企业工具、团队成员和消息渠道汇聚的统一工作台。
+- **Ora** — 源自拉丁语 *ora*（边界、前沿），代表 AI 驱动企业运营的最前沿。
+
+两者合一，体现平台的使命：**企业 AI 前沿的中枢平台** — 在可控的治理框架下，将智能体与业务中的人和工具连接在一起。
 
 ---
 
