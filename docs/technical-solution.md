@@ -213,19 +213,21 @@ flowchart LR
 
 ### 5.3 第三层：能力审批
 
-对高风险工具调用实施审批管控。
+用户安装或卸载能力（工具、技能、MCP 服务器、插件）时，通过策略引擎进行审批管控。
 
 ```mermaid
 flowchart LR
-    Agent["智能体调用工具"] --> Policy["审批策略检查"]
-    Policy -->|低风险| Execute["直接执行 + 审计"]
+    User["用户新增/删除能力"] --> Policy["审批策略检查"]
+    Policy -->|低风险| Allow["直接放行 + 审计"]
     Policy -->|中/高风险| Approval["进入审批队列"]
     Approval --> Admin["管理员审批"]
-    Admin -->|通过| Execute
-    Admin -->|拒绝| Reject["拒绝执行 + 审计"]
+    Admin -->|通过| Allow
+    Admin -->|拒绝| Reject["变更阻止 + 审计"]
 ```
 
-审批策略可按工具、风险等级、环境等级配置。审批结果记录审计日志。
+触发审批的操作类型：skill.create / skill.delete、mcp.create / mcp.delete、tool.create / tool.delete、plugin.install / plugin.uninstall、acp.create / acp.delete。
+
+审批策略可按能力类型、风险等级、环境等级配置。审批结果记录审计日志。
 
 ## 6. 数据存储设计
 
@@ -237,7 +239,7 @@ flowchart LR
 |------|------|
 | `nexora_users` | 用户账号（用户名、密码哈希、角色、状态） |
 | `nexora_audit_events` | 审计日志（操作者、动作、资源、状态、IP、详情） |
-| `nexora_approval_requests` | 审批请求（工具调用、风险等级、审批结果） |
+| `nexora_approval_requests` | 审批请求（能力新增/删除、风险等级、审批结果） |
 | `nexora_agent_grants` | 用户-智能体授权关系 |
 | `nexora_agent_templates` | 智能体模板 |
 | `nexora_governance` | 智能体资源治理策略 |
@@ -359,10 +361,11 @@ sequenceDiagram
         MW->>Grant: 校验用户是否可使用智能体
         Grant->>Grant: 校验智能体是否可使用资源
     end
-    alt 需要审批
+    alt 能力新增/删除操作
         API->>Cap: 检查审批策略
-        Cap-->>FE: 返回审批请求
-    else 通过
+        Cap-->>FE: 需审批 → 返回审批请求
+        Cap-->>FE: 无需审批 → 直接执行变更
+    else 常规操作
         MW->>Core: 调用原生能力
         Core-->>API: 返回结果
         API->>AUD: 记录审计事件

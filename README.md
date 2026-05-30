@@ -66,7 +66,7 @@ Nexora AI Platform is an enterprise-grade AI workspace built on [QwenPaw](https:
 |---------|-------------|
 | **Multi-Tenant RBAC** | Two-role model (admin / operator) with platform-level access control and user management |
 | **Agent Authorization** | Fine-grained agent grants per user — control who can access which AI agents |
-| **Capability Approval** | Risk-based approval workflow for sensitive tool invocations with configurable policies |
+| **Capability Approval** | Risk-based approval workflow for installing/removing tools, skills, MCP servers, and plugins |
 | **Audit Logging** | Full audit trail with PostgreSQL backend — auth, chat, tool use, config changes, admin actions |
 | **Token Usage Analytics** | Track LLM token consumption by user, agent, model, and date with dashboard visualization |
 | **Security Governance** | Resource policies, tool scanners, and centralized secret management |
@@ -119,17 +119,17 @@ Nexora enforces access control through three cascading layers — each request m
 ```
 Layer 1 — Platform Access          Layer 2 — Agent Authorization       Layer 3 — Capability Approval
 ┌──────────────────────┐           ┌──────────────────────┐           ┌──────────────────────┐
-│  User authenticates  │           │  Check agent_grants  │           │  Evaluate approval   │
-│  via JWT             │──pass──▶  │  for this user       │──pass──▶  │  policy for this     │
-│                      │           │                      │           │  tool invocation     │
-│  RBAC role checked   │           │  Only granted agents │           │  Low risk → execute  │
+│  User authenticates  │           │  Check agent_grants  │           │  When user installs  │
+│  via JWT             │──pass──▶  │  for this user       │           │  or removes a tool,  │
+│                      │           │                      │           │  skill, MCP, plugin  │
+│  RBAC role checked   │           │  Only granted agents │           │  Low risk → allow    │
 │  against route       │           │  are visible & usable│           │  High risk → queue   │
 └──────────────────────┘           └──────────────────────┘           └──────────────────────┘
         │ fail                             │ fail                             │ pending
         ▼                                  ▼                                  ▼
    401 / 403                          403 Forbidden                    Approval Request
    + audit log                        + audit log                      → Admin reviews
-                                                                       → Execute or reject
+                                                                       → Approve or reject
                                                                        + audit log
 ```
 
@@ -142,15 +142,18 @@ Browser ──▶ FastAPI ──▶ JWT Middleware ──▶ RBAC Guard ──�
                                                               │
                         ┌─────────────────────────────────────┘
                         ▼
-               Approval Policy Check ──▶ QwenPaw Agent Runtime ──▶ LLM Provider
-                        │                        │                       │
-                        ▼                        ▼                       ▼
-                  Approval Queue          Tool Execution          Token Recording
-                        │                        │                       │
-                        └────────────────────────┼───────────────────────┘
+               QwenPaw Agent Runtime ──▶ LLM Provider
+                        │                       │
+                        ▼                       ▼
+                  Tool Execution          Token Recording
+                        │                       │
+                        └───────────────────────┘
                                                  ▼
                                            PostgreSQL
                                     (audit · tokens · approvals)
+
+Capability changes (install/remove tools, skills, MCP, plugins)
+go through a separate approval workflow before taking effect.
 ```
 
 ### Multi-Agent Runtime
@@ -182,35 +185,36 @@ Nexora manages 100+ agents on a single node using lazy loading and automatic lif
 
 ### Capability Approval Workflow
 
-High-risk tool invocations go through a configurable approval gate before execution:
+When users install or remove capabilities (tools, skills, MCP servers, plugins), a configurable approval gate controls the change:
 
 ```
-Agent calls tool ──▶ Policy Engine checks risk level
-                          │
-              ┌───────────┼───────────┐
-              ▼           ▼           ▼
-          Low Risk    Medium Risk  High Risk
-              │           │           │
-              ▼           ▼           ▼
-         Auto-execute  Configurable  Must approve
-         + audit log   (approve/     + audit log
-                        auto)
-                          │
-                          ▼
-                   ┌─────────────┐
-                   │  Approval   │──▶ Admin reviews in Approval Center
-                   │  Queue      │    (tool name, params, risk level,
-                   │  (PG-backed)│     requesting agent, user context)
-                   └─────────────┘
-                          │
-                ┌─────────┴─────────┐
-                ▼                   ▼
-           Approved              Rejected
-           Execute tool          Return denial
-           + audit log           + audit log
+User adds/removes capability ──▶ Policy Engine checks risk level
+(skill.create, mcp.delete,            │
+ plugin.install, tool.create…)         │
+                          ┌────────────┼────────────┐
+                          ▼            ▼            ▼
+                      Low Risk    Medium Risk   High Risk
+                          │            │            │
+                          ▼            ▼            ▼
+                     Auto-allow   Configurable   Must approve
+                     + audit log  (approve/      + audit log
+                                   auto)
+                                       │
+                                       ▼
+                                ┌─────────────┐
+                                │  Approval   │──▶ Admin reviews in Approval Center
+                                │  Queue      │    (capability type, action, risk level,
+                                │  (PG-backed)│     requesting user context)
+                                └─────────────┘
+                                       │
+                             ┌─────────┴─────────┐
+                             ▼                   ▼
+                        Approved              Rejected
+                        Change applied        Change blocked
+                        + audit log           + audit log
 ```
 
-Policies are configurable per tool, per risk level, and per environment — stored in `nexora_capability_policies`.
+Policies are configurable per capability type, per risk level, and per environment — stored in `nexora_capability_policies`.
 
 ### Audit System
 
@@ -313,8 +317,8 @@ Multiple independent safety layers protect the system — no single bypass compr
     │ (path check)  │  Reject: blocked + audit log
     └───────┬───────┘
     ┌───────▼───────┐
-    │ Capability    │  Risk-based approval for sensitive tools
-    │ Approval      │  Hold: queued for admin review
+    │ Capability    │  Approval gate for installing/removing
+    │ Approval      │  tools, skills, MCP, plugins
     └───────┬───────┘
     ┌───────▼───────┐
     │ Skill Scanner │  Pre-install scan for injection, exfil,
@@ -332,8 +336,8 @@ All enterprise data is persisted in PostgreSQL with versioned migrations (Alembi
 | `nexora_users` | User accounts, password hashes, roles |
 | `nexora_agent_grants` | User ↔ Agent authorization mapping |
 | `nexora_audit_events` | Full audit trail (indexed by date, actor) |
-| `nexora_approval_requests` | Capability approval queue and results |
-| `nexora_capability_policies` | Risk-based approval policy configuration |
+| `nexora_approval_requests` | Capability change approval queue and results |
+| `nexora_capability_policies` | Risk-based capability change approval policies |
 | `nexora_governance` | Agent ↔ Tool/MCP/Skill resource policies |
 | `nexora_token_usage` | LLM token consumption records |
 | `nexora_runtime_config` | Runtime configuration key-value store |
@@ -484,7 +488,7 @@ src/
         ├── rbac.py              # Role-based access control
         ├── audit.py             # Audit event logging
         ├── agent_grants.py      # Per-user agent authorization
-        ├── capability_approval.py # Tool capability approval workflow
+        ├── capability_approval.py # Capability change approval workflow
         ├── governance.py        # Resource governance policies
         ├── authorization.py     # Authorization engine
         ├── db.py                # PostgreSQL schema & connection
@@ -525,7 +529,7 @@ Nexora combines QwenPaw's built-in security with enterprise governance:
 | **Tool Safety** | Tool Guard | Blocks dangerous commands (rm -rf, fork bombs, etc.) |
 | **File Safety** | File Access Guard | Restricts access to sensitive system paths |
 | **Skill Safety** | Security Scanner | Scans for injection, hardcoded keys, data exfiltration |
-| **Capability Control** | Approval Workflow | Sensitive tool calls require admin approval |
+| **Capability Control** | Approval Workflow | Installing/removing capabilities requires admin approval |
 | **Audit** | Full Logging | Every action logged to PostgreSQL with actor, timestamp, detail |
 | **Data** | Local Deployment | All data stays on your infrastructure |
 
@@ -639,7 +643,7 @@ Nexora AI Platform 是基于 [QwenPaw](https://github.com/agentscope-ai/QwenPaw)
 |------|------|
 | **多租户 RBAC** | 管理员 / 操作员双角色模型，平台级访问控制和用户管理 |
 | **智能体授权** | 按用户精细分配智能体访问权限，控制谁可以使用哪个智能体 |
-| **能力审批** | 基于风险等级的敏感工具调用审批流程，可配置策略 |
+| **能力审批** | 安装/卸载工具、技能、MCP 服务器、插件时的风险审批流程，可配置策略 |
 | **审计日志** | PostgreSQL 存储的全链路审计 — 认证、对话、工具调用、配置变更、管理操作 |
 | **Token 消耗分析** | 按用户、智能体、模型、日期维度追踪 LLM Token 消耗，可视化仪表盘 |
 | **安全治理** | 资源策略、工具扫描器、集中化密钥管理 |
@@ -658,9 +662,9 @@ Nexora 通过三层级联访问控制保护平台资源 — 每个请求必须�
 ```
 第一层 — 平台访问                第二层 — 智能体授权              第三层 — 能力审批
 ┌──────────────────┐            ┌──────────────────┐            ┌──────────────────┐
-│ 用户 JWT 认证    │            │ 检查 agent_grants│            │ 评估审批策略     │
-│                  │──通过──▶   │ 是否授权该智能体 │──通过──▶   │                  │
-│ RBAC 角色校验    │            │                  │            │ 低风险 → 直接执行│
+│ 用户 JWT 认证    │            │ 检查 agent_grants│            │ 安装/卸载工具、  │
+│                  │──通过──▶   │ 是否授权该智能体 │            │ 技能、MCP、插件时│
+│ RBAC 角色校验    │            │                  │            │ 低风险 → 直接放行│
 │ 路由级权限守卫   │            │ 仅展示已授权智能体│            │ 高风险 → 进入审批│
 └──────────────────┘            └──────────────────┘            └──────────────────┘
        │ 拒绝                          │ 拒绝                          │ 待审批
@@ -698,30 +702,31 @@ Nexora 通过三层级联访问控制保护平台资源 — 每个请求必须�
 
 ### 能力审批流程
 
-高风险工具调用通过可配置的审批闸口：
+用户安装或卸载能力（工具、技能、MCP 服务器、插件）时，通过可配置的审批闸口管控变更：
 
 ```
-智能体调用工具 ──▶ 策略引擎检查风险等级
-                        │
-            ┌───────────┼───────────┐
-            ▼           ▼           ▼
-        低风险       中风险       高风险
-            │           │           │
-            ▼           ▼           ▼
-       自动执行     可配置        必须审批
-       + 审计      (审批/自动)    + 审计
-                        │
-                        ▼
-                 ┌─────────────┐
-                 │  审批队列    │──▶ 管理员在审批中心审核
-                 │ (PG 存储)   │   (工具名、参数、风险等级、
-                 └─────────────┘    请求智能体、用户上下文)
-                        │
-              ┌─────────┴─────────┐
-              ▼                   ▼
-           通过                 拒绝
-         执行工具             返回拒绝
-         + 审计日志           + 审计日志
+用户新增/删除能力 ──▶ 策略引擎检查风险等级
+(skill.create, mcp.delete,       │
+ plugin.install, tool.create…)   │
+                      ┌──────────┼──────────┐
+                      ▼          ▼          ▼
+                  低风险       中风险      高风险
+                      │          │          │
+                      ▼          ▼          ▼
+                 自动放行     可配置       必须审批
+                 + 审计      (审批/自动)   + 审计
+                                 │
+                                 ▼
+                          ┌─────────────┐
+                          │  审批队列    │──▶ 管理员在审批中心审核
+                          │ (PG 存储)   │   (能力类型、操作、风险等级、
+                          └─────────────┘    请求用户上下文)
+                                 │
+                       ┌─────────┴─────────┐
+                       ▼                   ▼
+                    通过                 拒绝
+                  变更生效             变更阻止
+                  + 审计日志           + 审计日志
 ```
 
 ### 审计系统
@@ -803,7 +808,7 @@ request.state.user = "alice" → set_current_actor("alice")  →  get_current_ac
    │ 文件守卫      │  限制敏感路径 → blocked
    └───────┬───────┘
    ┌───────▼───────┐
-   │ 能力审批      │  高危操作 → 排队审批
+   │ 能力审批      │  安装/卸载能力 → 审批管控
    └───────┬───────┘
    ┌───────▼───────┐
    │ 技能扫描器    │  安装前检测注入/泄露 → blocked
@@ -942,7 +947,7 @@ docker compose up -d
 | **工具安全** | 工具守卫 | 拦截危险命令（rm -rf、fork 炸弹等） |
 | **文件安全** | 文件访问控制 | 限制访问敏感系统路径 |
 | **技能安全** | 安全扫描器 | 安装前检测注入、硬编码密钥、数据泄露 |
-| **能力管控** | 审批流程 | 敏感工具调用需管理员审批 |
+| **能力管控** | 审批流程 | 安装/卸载能力需管理员审批 |
 | **审计** | 全链路日志 | 每个操作记录到 PostgreSQL，含操作者、时间、详情 |
 | **数据** | 本地部署 | 所有数据存储在你自己的基础设施上 |
 
