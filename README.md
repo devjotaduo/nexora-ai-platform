@@ -124,6 +124,8 @@ Layer 1 — Platform Access          Layer 2 — Agent Authorization       Layer
 
 ### Request Lifecycle
 
+Every user action flows through a unified pipeline — auth, permission, execution, and audit are never bypassed:
+
 ```
 Browser ──▶ FastAPI ──▶ JWT Middleware ──▶ RBAC Guard ──▶ Agent Grant Check
                                                               │
@@ -139,6 +141,98 @@ Browser ──▶ FastAPI ──▶ JWT Middleware ──▶ RBAC Guard ──�
                                            PostgreSQL
                                     (audit · tokens · approvals)
 ```
+
+### Multi-Agent Runtime
+
+Nexora manages 100+ agents on a single node using lazy loading and automatic lifecycle management:
+
+```
+                         ┌─────────────────────────────────┐
+                         │      MultiAgentManager          │
+                         │                                 │
+  User request ────▶     │  ┌─ Active Agent Pool ────────┐ │
+  (agent_id)             │  │  agent_a  [last used: 10s] │ │     Max active: 20
+                         │  │  agent_b  [last used: 45s] │ │     Idle TTL: 1 hour
+                         │  │  agent_c  [last used: 300s]│ │     Eviction: LRU
+                         │  └────────────────────────────┘ │
+                         │         ▲           │           │
+                         │    lazy load    idle evict      │
+                         │         │           ▼           │
+                         │  ┌─ Agent Configs (disk) ─────┐ │
+                         │  │  100+ agent YAML configs   │ │
+                         │  └────────────────────────────┘ │
+                         └─────────────────────────────────┘
+```
+
+- Agents are loaded on first request, not at startup — cold start stays fast
+- Idle agents are evicted after a configurable TTL (default 1 hour)
+- When the pool is full, least-recently-used agents are evicted first
+- Each agent maintains its own memory, tools, and channel bindings
+
+### Capability Approval Workflow
+
+High-risk tool invocations go through a configurable approval gate before execution:
+
+```
+Agent calls tool ──▶ Policy Engine checks risk level
+                          │
+              ┌───────────┼───────────┐
+              ▼           ▼           ▼
+          Low Risk    Medium Risk  High Risk
+              │           │           │
+              ▼           ▼           ▼
+         Auto-execute  Configurable  Must approve
+         + audit log   (approve/     + audit log
+                        auto)
+                          │
+                          ▼
+                   ┌─────────────┐
+                   │  Approval   │──▶ Admin reviews in Approval Center
+                   │  Queue      │    (tool name, params, risk level,
+                   │  (PG-backed)│     requesting agent, user context)
+                   └─────────────┘
+                          │
+                ┌─────────┴─────────┐
+                ▼                   ▼
+           Approved              Rejected
+           Execute tool          Return denial
+           + audit log           + audit log
+```
+
+Policies are configurable per tool, per risk level, and per environment — stored in `nexora_capability_policies`.
+
+### Audit System
+
+Every significant action produces an immutable audit record in PostgreSQL:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    Audit Event Record                     │
+├──────────┬───────────────────────────────────────────────┤
+│ actor    │ The authenticated user who triggered action   │
+│ action   │ e.g. chat.message.send, auth.login, tool.exec│
+│ resource │ Type + ID of affected resource                │
+│ status   │ success / failure                             │
+│ ip       │ Client IP address                             │
+│ ua       │ User-Agent string                             │
+│ detail   │ JSON payload (params, result summary, etc.)   │
+│ timestamp│ Server-side UTC timestamp                     │
+└──────────┴───────────────────────────────────────────────┘
+```
+
+Audit coverage:
+
+| Category | Events |
+|----------|--------|
+| **Auth** | Login success/failure, registration, logout |
+| **Users** | Create, delete, role change, password reset |
+| **Agents** | Grant/revoke authorization, config changes |
+| **Chat** | Message send, reconnect, stop, file upload |
+| **Tools** | Execution attempts (success + blocked) |
+| **Approvals** | Request created, approved, rejected, timeout |
+| **Config** | Model changes, environment variable updates |
+
+Audit writes are fire-and-forget — a failed audit write never blocks the main operation.
 
 ### Token Usage Tracking
 
@@ -157,6 +251,67 @@ request.state.user = "alice"  →  set_current_actor("alice")   →  get_current
 
 Records are aggregated by user, agent, model, and date — visualized in the Token Usage dashboard with trend charts and per-user breakdown tables.
 
+### Extension Isolation
+
+Nexora follows a strict "upstream core + extension layer" architecture to minimize merge conflicts when syncing with QwenPaw:
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  QwenPaw Core (upstream)                    Modification: ≤5% │
+│  ├── app/auth.py ·············· JWT middleware hook            │
+│  ├── app/routers/console.py ··· audit + ContextVar injection  │
+│  ├── app/routers/__init__.py ·· register nexora router        │
+│  └── token_usage/model_wrapper · PG write hook                │
+├────────────────────────────────────────────────────────────────┤
+│  Nexora Extension Layer (isolated)         Modification: 100% │
+│  ├── qwenpaw_ext/nexora/ ····· All backend business logic     │
+│  │   ├── rbac.py, audit.py, agent_grants.py, ...              │
+│  │   └── repositories/ ······ PostgreSQL data access          │
+│  ├── console/src/nexora/ ····· All frontend pages & API       │
+│  └── alembic/versions/ ······ Database migrations             │
+└────────────────────────────────────────────────────────────────┘
+```
+
+Only 4 upstream files are modified — the rest of Nexora lives entirely in extension directories. This keeps `git merge upstream/main` clean in >95% of cases.
+
+### Security Defense in Depth
+
+Multiple independent safety layers protect the system — no single bypass compromises security:
+
+```
+       Inbound Request
+            │
+    ┌───────▼───────┐
+    │ JWT Auth      │  Identity verification
+    │ (middleware)  │  Reject: 401 Unauthorized
+    └───────┬───────┘
+    ┌───────▼───────┐
+    │ RBAC Guard    │  Role-based route protection
+    │ (per-route)   │  Reject: 403 Forbidden
+    └───────┬───────┘
+    ┌───────▼───────┐
+    │ Agent Grants  │  Per-user agent access control
+    │ (DB lookup)   │  Reject: 403 Forbidden
+    └───────┬───────┘
+    ┌───────▼───────┐
+    │ Tool Guard    │  Block rm -rf, fork bombs, reverse shells
+    │ (pattern)     │  Reject: blocked + audit log
+    └───────┬───────┘
+    ┌───────▼───────┐
+    │ File Guard    │  Restrict ~/.ssh, /etc/passwd, key files
+    │ (path check)  │  Reject: blocked + audit log
+    └───────┬───────┘
+    ┌───────▼───────┐
+    │ Capability    │  Risk-based approval for sensitive tools
+    │ Approval      │  Hold: queued for admin review
+    └───────┬───────┘
+    ┌───────▼───────┐
+    │ Skill Scanner │  Pre-install scan for injection, exfil,
+    │ (static)      │  hardcoded keys, suspicious patterns
+    └───────┬───────┘
+            ▼
+      Execute + Audit
+
 ### PostgreSQL Schema
 
 All enterprise data is persisted in PostgreSQL with versioned migrations (Alembic):
@@ -171,6 +326,34 @@ All enterprise data is persisted in PostgreSQL with versioned migrations (Alembi
 | `nexora_governance` | Agent ↔ Tool/MCP/Skill resource policies |
 | `nexora_token_usage` | LLM token consumption records |
 | `nexora_runtime_config` | Runtime configuration key-value store |
+
+### Streaming Chat & Task Management
+
+Chat sessions use server-sent events (SSE) with background task tracking — clients can disconnect and reconnect without losing the agent's response:
+
+```
+Client POST /console/chat
+        │
+        ▼
+  TaskTracker.attach_or_start()
+        │
+        ├──▶ New chat: spawn background task → agent.stream_one()
+        │                                           │
+        │                                     SSE events ──▶ Queue
+        │                                           │
+        └──▶ Reconnect: attach to existing queue ◀──┘
+                    │
+                    ▼
+            StreamingResponse (SSE)
+            "data: {token}..."
+            "data: {token}..."
+            "data: [DONE]"
+```
+
+- Agent runs in background — client abort doesn't kill the computation
+- `POST /console/chat/stop` sends a cancellation signal
+- Multiple subscribers can attach to the same running stream
+- Chat title is auto-generated via LLM in a detached background task
 
 ---
 
@@ -464,6 +647,77 @@ Nexora 通过三层级联访问控制保护平台资源 — 每个请求必须�
    + 审计日志                     + 审计日志                      → 通过或拒绝 + 审计日志
 ```
 
+### 多智能体运行时
+
+单节点管理 100+ 智能体，按需懒加载，自动生命周期管理：
+
+```
+                         ┌─────────────────────────────────┐
+                         │      MultiAgentManager          │
+                         │                                 │
+  用户请求 ─────▶        │  ┌─ 活跃智能体池 ────────────┐  │
+  (agent_id)             │  │  agent_a [最近使用: 10s]  │  │    最大活跃: 20
+                         │  │  agent_b [最近使用: 45s]  │  │    空闲回收: 1小时
+                         │  │  agent_c [最近使用: 300s] │  │    淘汰策略: LRU
+                         │  └────────────────────────────┘ │
+                         │         ▲           │           │
+                         │     懒加载      空闲回收        │
+                         │         │           ▼           │
+                         │  ┌─ 智能体配置 (磁盘) ────────┐ │
+                         │  │  100+ 智能体 YAML 配置     │ │
+                         │  └────────────────────────────┘ │
+                         └─────────────────────────────────┘
+```
+
+- 智能体首次请求时才加载，启动保持快速
+- 空闲超过 TTL 自动回收（默认 1 小时）
+- 池满时按最近最少使用（LRU）策略淘汰
+- 每个智能体独立维护记忆、工具和渠道绑定
+
+### 能力审批流程
+
+高风险工具调用通过可配置的审批闸口：
+
+```
+智能体调用工具 ──▶ 策略引擎检查风险等级
+                        │
+            ┌───────────┼───────────┐
+            ▼           ▼           ▼
+        低风险       中风险       高风险
+            │           │           │
+            ▼           ▼           ▼
+       自动执行     可配置        必须审批
+       + 审计      (审批/自动)    + 审计
+                        │
+                        ▼
+                 ┌─────────────┐
+                 │  审批队列    │──▶ 管理员在审批中心审核
+                 │ (PG 存储)   │   (工具名、参数、风险等级、
+                 └─────────────┘    请求智能体、用户上下文)
+                        │
+              ┌─────────┴─────────┐
+              ▼                   ▼
+           通过                 拒绝
+         执行工具             返回拒绝
+         + 审计日志           + 审计日志
+```
+
+### 审计系统
+
+每个重要操作产生一条不可变的审计记录：
+
+| 分类 | 审计事件 |
+|------|---------|
+| **认证** | 登录成功/失败、注册、退出 |
+| **用户** | 创建、删除、角色变更、密码重置 |
+| **智能体** | 授权/撤销、配置变更 |
+| **对话** | 消息发送、重连、停止、文件上传 |
+| **工具** | 执行尝试（成功 + 被拦截） |
+| **审批** | 请求创建、审批通过、拒绝、超时 |
+| **配置** | 模型变更、环境变量更新 |
+
+审计写入采用 fire-and-forget 模式 — 审计写入失败不会阻断主流程。
+
 ### Token 消耗追踪
 
 Token 消耗归属到 **JWT 认证用户**（而非聊天负载中的 sender_id），通过 Python `ContextVar` 在异步调用链中传递身份：
@@ -480,6 +734,88 @@ request.state.user = "alice" → set_current_actor("alice")  →  get_current_ac
 ```
 
 按用户、智能体、模型、日期四维聚合，在 Token 消耗仪表盘中可视化展示趋势图和用户明细表。
+
+### 扩展隔离架构
+
+严格的"上游核心 + 扩展层"架构，最小化上游合并冲突：
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  QwenPaw 核心 (上游)                        修改比例: ≤5%     │
+│  ├── app/auth.py ·············· JWT 中间件挂载点              │
+│  ├── app/routers/console.py ··· 审计 + ContextVar 注入        │
+│  ├── app/routers/__init__.py ·· 注册 nexora 路由              │
+│  └── token_usage/model_wrapper · PG 写入挂载点                │
+├────────────────────────────────────────────────────────────────┤
+│  Nexora 扩展层 (隔离)                       修改比例: 100%    │
+│  ├── qwenpaw_ext/nexora/ ····· 全部后端业务逻辑               │
+│  │   ├── rbac.py, audit.py, agent_grants.py, ...              │
+│  │   └── repositories/ ······ PostgreSQL 数据访问层           │
+│  ├── console/src/nexora/ ····· 全部前端页面和 API             │
+│  └── alembic/versions/ ······ 数据库迁移脚本                  │
+└────────────────────────────────────────────────────────────────┘
+```
+
+仅修改 4 个上游文件，其余 Nexora 代码完全在扩展目录中。`git merge upstream/main` 在 95% 以上的情况下无冲突。
+
+### 安全纵深防御
+
+多层独立安全机制 — 任何单一绕过都不会导致系统失守：
+
+```
+       请求进入
+           │
+   ┌───────▼───────┐
+   │ JWT 认证      │  身份验证 → 401
+   └───────┬───────┘
+   ┌───────▼───────┐
+   │ RBAC 守卫     │  角色权限 → 403
+   └───────┬───────┘
+   ┌───────▼───────┐
+   │ 智能体授权    │  用户-智能体映射 → 403
+   └───────┬───────┘
+   ┌───────▼───────┐
+   │ 工具守卫      │  拦截危险命令 → blocked
+   └───────┬───────┘
+   ┌───────▼───────┐
+   │ 文件守卫      │  限制敏感路径 → blocked
+   └───────┬───────┘
+   ┌───────▼───────┐
+   │ 能力审批      │  高危操作 → 排队审批
+   └───────┬───────┘
+   ┌───────▼───────┐
+   │ 技能扫描器    │  安装前检测注入/泄露 → blocked
+   └───────┬───────┘
+           ▼
+     执行 + 审计记录
+```
+
+### 流式对话与任务管理
+
+对话使用 SSE（Server-Sent Events）推送，后台任务跟踪 — 客户端断线重连不丢失响应：
+
+```
+客户端 POST /console/chat
+        │
+        ▼
+  TaskTracker.attach_or_start()
+        │
+        ├──▶ 新对话: 启动后台任务 → agent.stream_one()
+        │                               │
+        │                         SSE 事件 ──▶ 队列
+        │                               │
+        └──▶ 重连: 接入已有队列 ◀────────┘
+                    │
+                    ▼
+            StreamingResponse (SSE)
+            "data: {token}..."
+            "data: [DONE]"
+```
+
+- 智能体在后台运行 — 客户端断开不会终止计算
+- `POST /console/chat/stop` 发送取消信号
+- 多个订阅者可以接入同一运行中的流
+- 对话标题通过 LLM 在后台自动生成
 
 ### PostgreSQL 数据表
 
