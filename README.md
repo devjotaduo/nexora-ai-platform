@@ -14,7 +14,7 @@
 
 ---
 
-## Why "Nexora"?
+## What is Nexora?
 
 **Nexora** = **Nex**us + **ora** (edge, frontier)
 
@@ -590,7 +590,7 @@ Built on [QwenPaw](https://github.com/agentscope-ai/QwenPaw) by [AgentScope AI](
 
 ---
 
-## 命名理念
+## 什么是 Nexora？
 
 **Nexora** = **Nex**us + **ora**（边界、前沿）
 
