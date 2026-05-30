@@ -2,15 +2,15 @@
 
 ## 当前状态
 
-- 源码目录：`/Users/leo/Documents/qwenpaw-src`
+- 源码目录：`/path/to/nexora-ai-platform`
 - Web 控制台：`http://127.0.0.1:8088`
-- 本地工作目录：`/Users/leo/.qwenpaw`
+- 本地工作目录：`~/.qwenpaw`
 - 当前默认界面语言：中文
 
 ## 启动
 
 ```bash
-cd /Users/leo/Documents/qwenpaw-src
+cd /path/to/nexora-ai-platform
 ./start-qwenpaw-zh.sh
 ```
 

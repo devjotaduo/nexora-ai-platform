@@ -3,7 +3,7 @@
 **报告日期**: 2026-05-30  
 **测试执行**: 2026-05-29 ~ 2026-05-30  
 **测试环境**: macOS Darwin 25.3.0 / Python 3.11 / uvicorn 单 worker / PostgreSQL 16 (Docker) / 端口 8088  
-**系统版本**: 基于 QwenPaw 二次开发，含 CJ AIops 多租户权限扩展  
+**系统版本**: 基于 QwenPaw 二次开发，含 Nexora 多租户权限扩展  
 
 ---
 

@@ -1,92 +1,145 @@
-# Nexora AI Platform技术方案
+# Nexora AI Platform 技术方案
 
-> 更新时间：2026-05-26。本文档已根据当前二开进展更新，覆盖用户权限、智能体权限、审计日志、菜单结构与登录审计容错修复。
+> 更新时间：2026-05-30
 
 ## 1. 项目定位
 
-Nexora AI Platform基于开源项目 QwenPaw 二次开发，目标是建设一个面向智能运维场景的 AI Agent 调度与治理平台。
+Nexora AI Platform 基于开源项目 QwenPaw 二次开发，目标是建设面向企业级场景的 AI Agent 调度与治理平台。
 
-平台不是重新建设一套 Agent 系统，而是在 QwenPaw 已有能力上补齐企业运维平台需要的登录认证、用户体系、权限体系、智能体授权、工具治理、审计日志和后续审批能力。
+平台不是重新建设一套 Agent 系统，而是在 QwenPaw 已有能力上补齐企业平台需要的：
+
+- 登录认证与 JWT 会话管理
+- 多租户用户体系与 RBAC
+- 智能体授权与能力审批
+- 工具治理与安全防护
+- 全链路审计日志
+- Token 消耗统计与分析
+- PostgreSQL 持久化存储
 
 核心目标：
 
-- 提供 Web 控制台，支持登录、用户管理、角色管理和权限治理。
-- 以智能体作为 Tool、MCP、Skill 的主要使用载体。
-- 通过 CLI、API、MCP、Skill 等方式接入现有运维工具。
-- 让传统运维工具能够被 AI Agent 安全调用。
-- 对用户登录、平台操作、智能体使用、工具调用等行为进行审计。
-- 尽量保持二开代码独立，降低后续同步 QwenPaw 上游更新的成本。
+- 提供 Web 控制台，支持登录、用户管理、角色管理和权限治理
+- 以智能体作为 Tool、MCP、Skill 的主要使用载体
+- 通过 CLI、API、MCP、Skill 等方式接入现有运维工具
+- 让传统运维工具能够被 AI Agent 安全调用
+- 对用户登录、平台操作、智能体使用、工具调用等行为进行全链路审计
+- 按用户、智能体、模型维度追踪 Token 消耗
+- 尽量保持二开代码独立，降低后续同步 QwenPaw 上游更新的成本
+
+### 1.1 设计规模
+
+- **用户规模**：至少 100 个并发用户，覆盖管理员和操作员两类角色
+- **智能体规模**：至少 100 个智能体，支持按需懒加载、空闲回收、LRU 淘汰
+- **存储要求**：所有业务数据使用 PostgreSQL 持久化
+- **权限粒度**：三层权限模型（平台访问 → 智能体授权 → 能力审批）
+- **审计合规**：全链路审计日志满足企业合规要求
 
 ## 2. 建设原则
 
-本项目采用“上游核心 + Nexora 扩展层”的建设方式。
+本项目采用"上游核心 + Nexora 扩展层"的建设方式：
 
-- QwenPaw 原项目作为 Agent 和控制台底座，尽量复用原生能力。
-- 二开功能优先放入 `qwenpaw_ext/nexora` 和 `console/src/nexora`。
-- 原项目文件只保留必要挂载点，例如路由注册、菜单注册、权限中间件接入。
-- 不重复建设 QwenPaw 已有的聊天、智能体、模型、Skill、MCP、工具、会话等基础能力。
-- 工具治理按“智能体可用资源”设计，不直接把工具授权给用户。
-- 菜单访问按“用户 -> 角色 -> 菜单/接口权限”设计。
-- 所有关键操作应具备权限控制和审计记录；审计失败不能阻断主流程。
+- QwenPaw 原项目作为 Agent 和控制台底座，复用原生能力
+- 二开功能优先放入 `qwenpaw_ext/nexora` 和 `console/src/nexora`
+- 原项目文件只保留必要挂载点（路由注册、菜单注册、权限中间件接入）
+- 不重复建设 QwenPaw 已有的聊天、智能体、模型、Skill、MCP、工具等基础能力
+- 工具治理按"智能体可用资源"设计，不直接把工具授权给用户
+- 所有关键操作具备权限控制和审计记录；审计失败不阻断主流程
+- 所有业务数据存储使用 PostgreSQL，禁止 JSON 文件存储
 
-## 3. 当前项目结构
+## 3. 项目结构
 
 ```text
-qwenpaw-src/
+nexora-ai-platform/
   console/
     src/
-      api/                         # QwenPaw 原生前端 API
-      pages/                       # QwenPaw 原生页面
-      layouts/                     # 菜单、布局、Header
-      stores/                      # 智能体等前端状态
-      nexora/                    # Nexora AI 前端扩展
+      api/                           # QwenPaw 原生前端 API
+        modules/
+          tokenUsage.ts              # Token 消耗 API（含按用户统计）
+        types/
+          tokenUsage.ts              # Token 消耗类型定义
+      pages/                         # QwenPaw 原生页面
+        Settings/
+          TokenUsage/                # Token 消耗统计页面（含按用户维度）
+      layouts/                       # 菜单、布局、Header
+      stores/                        # 智能体等前端状态
+      nexora/                        # Nexora 前端扩展
         api/
-          audit.ts                 # 审计日志 API
-          governance.ts            # 智能体权限 / 工具治理 API
+          audit.ts                   # 审计日志 API
+          governance.ts              # 智能体权限 / 工具治理 API
+          multiTenant.ts             # 多租户管理 API
         pages/
-          AuditLogs/               # 日志审计页面
-          OpsGovernance/           # 智能体权限页面
-          UserManagement/          # 用户权限页面
-        utils/                     # 权限与资源过滤工具
+          AuditLogs/                 # 日志审计页面
+          OpsGovernance/             # 智能体权限页面
+          UserManagement/            # 用户权限页面
+        utils/                       # 权限与资源过滤工具
     public/
-      logo.png                     # Nexora AI logo
-      logo-icon.svg                # favicon
+      logo.png                       # 平台 logo
+      logo-icon.svg                  # favicon
 
   src/
-    qwenpaw/                       # QwenPaw 原生后端代码
+    qwenpaw/                         # QwenPaw 原生后端代码
       app/
-        auth.py                    # 认证中间件、API 权限拦截挂载点
+        auth.py                      # 认证中间件、JWT 校验
+        agent_context.py             # ContextVar（当前用户/智能体追踪）
         routers/
-          auth.py                  # 登录、用户、角色、权限接口
-          agents.py                # 智能体接口，已接入授权过滤
-          nexora.py              # Nexora 扩展路由挂载
-          console.py               # 会话相关接口，已接入审计
+          auth.py                    # 登录、用户、角色、权限接口
+          agents.py                  # 智能体接口，已接入授权过滤
+          nexora.py                  # Nexora 扩展路由挂载
+          console.py                 # 会话相关接口，已接入审计和用户追踪
+          _capability_approval.py    # 能力审批 API
         runner/
-          api.py                   # Agent 执行链路，已接入审计
-      console/                     # 前端构建产物，由后端托管
+          runner.py                  # Agent 执行链路
+      token_usage/
+        model_wrapper.py             # Token 消耗记录（含 PG 写入）
+      console/                       # 前端构建产物
 
     qwenpaw_ext/
       nexora/
-        audit.py                   # 审计日志写入与查询
-        governance.py              # 智能体与工具 / MCP / Skill 授权关系
-        rbac.py                    # 用户、角色、权限与 API 权限策略
+        rbac.py                      # 用户、角色、权限与 API 权限策略
+        audit.py                     # 审计日志写入与查询
+        agent_grants.py              # 用户-智能体授权关系
+        agent_templates.py           # 智能体模板管理
+        authorization.py             # 授权引擎
+        capability_approval.py       # 能力审批策略与执行
+        governance.py                # 智能体与工具/MCP/Skill 授权关系
+        db.py                        # PostgreSQL 连接与表结构管理
+        repositories/                # 数据访问层（全部 PostgreSQL）
+          auth_postgres.py           # 用户认证存储
+          agent_grants_postgres.py   # 智能体授权存储
+          agent_templates_postgres.py
+          approval_postgres.py       # 审批请求存储
+          audit_postgres.py          # 审计日志存储
+          capability_approval_postgres.py
+          config_postgres.py         # 运行时配置存储
+          governance_postgres.py     # 治理策略存储
 
-  docs/
-    technical-solution.md          # 本技术方案
-  CUSTOMIZATION.md                 # 二开范围、升级方式、托管说明
-  start-qwenpaw-zh.sh              # 中文化启动脚本
+  tests/
+    unit/nexora/                     # 扩展模块单元测试（96 passed）
+    load/locustfile.py               # 100 用户并发压力测试
+    contract/                        # 契约测试
+    integration/                     # 集成测试
+
+  alembic/                           # 数据库版本化迁移
+    versions/
+      0001_nexora_audit_approval.py
+      0002_nexora_runtime_config.py
+      0003_nexora_multi_tenant.py
+      0004_nexora_capability_approval_policy_enum.py
+
+  docs/                              # 项目文档
+  deploy/                            # Docker 部署配置
 ```
 
 ## 4. 技术架构
 
 平台采用前后端一体化部署：
 
-- 前端：React、TypeScript、Ant Design。
-- 后端：Python、FastAPI、Uvicorn。
-- Agent 底座：QwenPaw 原生 Agent Runtime。
-- 工具生态：QwenPaw 原生 Tool、MCP、Skill。
-- 二开扩展：Nexora RBAC、智能体权限、资源过滤、审计日志。
-- 本地数据：`~/.qwenpaw` 保存运行配置、工作区、Agent 数据；`~/.qwenpaw.secret` 保存用户认证和审计等敏感数据。
+- **前端**：React + TypeScript + Ant Design + Vite
+- **后端**：Python + FastAPI + Uvicorn
+- **数据库**：PostgreSQL 16
+- **Agent 底座**：QwenPaw 原生 Agent Runtime
+- **工具生态**：QwenPaw 原生 Tool、MCP、Skill
+- **二开扩展**：Nexora RBAC、智能体授权、能力审批、资源治理、审计日志、Token 统计
 
 ### 4.1 系统架构图
 
@@ -95,31 +148,34 @@ flowchart TB
     User["用户 / 管理员"] --> Browser["Web 浏览器"]
     Browser --> FE["React 控制台"]
     FE --> API["FastAPI 后端"]
-    API --> Auth["认证中间件 / Token 校验"]
-    Auth --> RBAC["用户角色权限<br/>rbac.py"]
-    API --> Governance["智能体权限治理<br/>governance.py"]
+    API --> Auth["JWT 认证中间件"]
+    Auth --> RBAC["RBAC 权限校验<br/>rbac.py"]
+    API --> AgentGrants["智能体授权<br/>agent_grants.py"]
+    API --> CapApproval["能力审批<br/>capability_approval.py"]
+    API --> Governance["资源治理<br/>governance.py"]
     API --> Audit["审计日志<br/>audit.py"]
+    API --> TokenTrack["Token 统计<br/>model_wrapper.py"]
     API --> AgentRuntime["QwenPaw Agent Runtime"]
-    AgentRuntime --> Agents["运维智能体 / 发布助手 / 故障分析助手"]
+    AgentRuntime --> Agents["智能体"]
     Agents --> Tools["Tool"]
     Agents --> MCP["MCP"]
     Agents --> Skills["Skill"]
-    Tools --> OpsTools["现有运维工具<br/>监控 / 日志 / CMDB / CI/CD / K8s"]
-    MCP --> OpsTools
-    Skills --> OpsTools
-    RBAC --> SecretData[".qwenpaw.secret"]
-    Governance --> SecretData
-    Audit --> SecretData
+    RBAC --> PG["PostgreSQL 16"]
+    AgentGrants --> PG
+    CapApproval --> PG
+    Governance --> PG
+    Audit --> PG
+    TokenTrack --> PG
     AgentRuntime --> Workspace[".qwenpaw/workspaces"]
 ```
 
-## 5. 权限总体设计
+## 5. 权限体系设计
 
-当前权限体系分成两条主线。
+权限体系分三层，形成完整的访问控制链路：
 
-### 5.1 用户权限路线
+### 5.1 第一层：平台访问权限
 
-用于控制用户能访问哪些菜单、页面和平台接口。
+控制用户能访问哪些菜单、页面和平台接口。
 
 ```mermaid
 flowchart LR
@@ -129,36 +185,91 @@ flowchart LR
     P --> API["后端接口"]
 ```
 
-示例：
+角色设计：
 
-- `admin`：平台管理员，可访问用户权限、智能体权限、安全设置、审计日志等管理能力。
-- `operator`：运维工程师，默认只拥有智能体使用能力，不直接拥有系统配置和工具管理能力。
+- `admin`：平台管理员，可访问用户管理、智能体授权、审计日志、安全设置等全部管理能力
+- `operator`：操作员，默认只拥有智能体使用能力，不直接拥有系统配置和工具管理权限
 
-### 5.2 智能体权限路线
+### 5.2 第二层：智能体授权
 
-用于控制每个智能体可以调用哪些 Tool、MCP、Skill。
+控制每个用户可以使用哪些智能体（agent_grants 表）。
 
 ```mermaid
 flowchart LR
-    U["用户"] --> R["角色"]
-    R --> AgentPerm["可使用的智能体"]
-    AgentPerm --> Agent["智能体"]
+    U["用户"] --> Grant["agent_grants"]
+    Grant --> Agent["智能体"]
     Agent --> ResourcePerm["智能体资源授权"]
     ResourcePerm --> Tool["Tool"]
     ResourcePerm --> MCP["MCP"]
     ResourcePerm --> Skill["Skill"]
 ```
 
-当前设计重点：
+- 用户不直接使用工具，用户先被授权使用某些智能体
+- 工具、MCP、Skill 授权给智能体
+- 工作区页面只展示当前智能体有权限的资源
+- 未授权资源在界面上不可见，后端也拦截
 
-- 用户不直接使用工具，用户先被授权使用某些智能体。
-- 工具、MCP、Skill 授权给智能体。
-- 工作区页面只展示当前智能体有权限的工具、MCP、Skill。
-- 未授权资源在界面上不可见，后端也应继续拦截。
+支持批量授权和撤销操作，适配 100 用户规模。
 
-## 6. 菜单与页面规划
+### 5.3 第三层：能力审批
 
-当前菜单按运维平台视角重新组织：
+对高风险工具调用实施审批管控。
+
+```mermaid
+flowchart LR
+    Agent["智能体调用工具"] --> Policy["审批策略检查"]
+    Policy -->|低风险| Execute["直接执行 + 审计"]
+    Policy -->|中/高风险| Approval["进入审批队列"]
+    Approval --> Admin["管理员审批"]
+    Admin -->|通过| Execute
+    Admin -->|拒绝| Reject["拒绝执行 + 审计"]
+```
+
+审批策略可按工具、风险等级、环境等级配置。审批结果记录审计日志。
+
+## 6. 数据存储设计
+
+所有业务数据使用 PostgreSQL 持久化，通过 Alembic 管理表结构迁移。
+
+### 6.1 核心表结构
+
+| 表名 | 用途 |
+|------|------|
+| `nexora_users` | 用户账号（用户名、密码哈希、角色、状态） |
+| `nexora_audit_events` | 审计日志（操作者、动作、资源、状态、IP、详情） |
+| `nexora_approval_requests` | 审批请求（工具调用、风险等级、审批结果） |
+| `nexora_agent_grants` | 用户-智能体授权关系 |
+| `nexora_agent_templates` | 智能体模板 |
+| `nexora_governance` | 智能体资源治理策略 |
+| `nexora_capability_policies` | 能力审批策略 |
+| `nexora_runtime_config` | 运行时配置 |
+| `nexora_token_usage` | Token 消耗记录（日期、用户、智能体、模型、token 数） |
+
+### 6.2 Token 消耗追踪
+
+Token 消耗通过 ContextVar 机制追踪当前认证用户：
+
+```mermaid
+sequenceDiagram
+    participant FE as 前端
+    participant API as FastAPI
+    participant Auth as JWT 中间件
+    participant Ctx as ContextVar
+    participant LLM as LLM 调用
+    participant PG as PostgreSQL
+
+    FE->>API: 发送聊天请求
+    API->>Auth: 校验 JWT Token
+    Auth->>Ctx: set_current_actor(认证用户)
+    API->>LLM: 调用大模型
+    LLM->>Ctx: get_current_actor()
+    LLM->>PG: INSERT INTO nexora_token_usage
+    PG-->>FE: Token 消耗仪表盘展示
+```
+
+Token 记录写入使用后台守护线程，不阻塞主请求。按用户、智能体、模型、日期四个维度聚合，支持前端可视化分析。
+
+## 7. 菜单与页面结构
 
 ```text
 工作区
@@ -171,7 +282,7 @@ flowchart LR
 
 智能报表
   智能体统计
-  Token 消耗
+  Token 消耗（含按用户统计）
 
 控制
   渠道
@@ -194,363 +305,214 @@ flowchart LR
   插件
 ```
 
-菜单折叠策略：
+## 8. 前端设计
 
-- `权限管理` 默认展开。
-- `智能报表` 默认展开。
-- `安全管理` 默认展开。
-- `设置` 默认折叠。
-- 工作区作为主要使用区域，聊天放在第一个入口。
-- Header 右上角展示当前登录用户名，并提供退出登录。
+### 8.1 复用 QwenPaw 原生能力
 
-## 7. 前端设计
-
-已复用的 QwenPaw 原生能力：
-
-- 聊天页
+- 聊天页（含 Coding 模式）
 - 智能体管理
-- 工具管理
-- MCP 管理
-- Skill 管理
+- 工具 / MCP / Skill 管理
 - 定时任务
 - 模型配置
 - 环境变量
 - 安全设置
-- Token 用量
 - 智能体统计
-- 收件箱能力，已在菜单中命名为审批中心
+- 收件箱（审批中心）
 
-Nexora AI 前端扩展：
+### 8.2 Nexora 扩展能力
 
-```text
-console/src/nexora/
-  api/
-    audit.ts
-    governance.ts
-  pages/
-    AuditLogs/
-    OpsGovernance/
-    UserManagement/
-  utils/
-```
-
-已实现能力：
-
-- 用户管理
+- 用户管理（CRUD、角色分配、批量操作）
 - 角色管理
-- 权限点管理展示
-- 智能体权限配置
+- 智能体授权配置（按用户分配可用智能体）
 - 智能体可用 Tool / MCP / Skill 配置
 - 工作区资源按当前智能体权限过滤
-- 日志审计页面
-- Header 用户名展示
-- 退出登录入口
+- 日志审计页面（分页、过滤、检索）
+- Token 消耗按用户统计表格
+- Header 用户名展示与退出登录
 
-前端通过 `/api/auth/me` 获取当前用户、角色和有效权限。前端权限用于菜单展示和资源过滤，真正安全边界仍由后端 API 校验。
+前端通过 `/api/auth/me` 获取当前用户、角色和有效权限。前端权限用于菜单展示和资源过滤，安全边界由后端 API 校验。
 
-## 8. 后端设计
+## 9. 后端设计
 
-QwenPaw 原生后端承担：
-
-- Web 服务启动
-- 静态前端托管
-- 登录认证中间件
-- Agent 运行
-- 聊天会话
-- MCP、Tool、Skill 原生管理
-- 工作区管理
-
-Nexora 扩展后端：
-
-```text
-src/qwenpaw_ext/nexora/
-  rbac.py
-  governance.py
-  audit.py
-```
-
-职责：
-
-- `rbac.py`：用户、角色、权限点、接口权限映射。
-- `governance.py`：角色到智能体授权、智能体到工具 / MCP / Skill 授权。
-- `audit.py`：审计事件写入、查询、过滤。
-
-### 8.1 后端权限流程
+### 9.1 后端权限流程
 
 ```mermaid
 sequenceDiagram
     participant U as 用户
     participant FE as 前端
     participant API as FastAPI
-    participant MW as AuthMiddleware
+    participant MW as JWT 中间件
     participant RBAC as RBAC
-    participant GOV as 智能体权限
+    participant Grant as 智能体授权
+    participant Cap as 能力审批
     participant Core as QwenPaw 核心
     participant AUD as 审计
+    participant PG as PostgreSQL
 
-    U->>FE: 发起页面操作
-    FE->>API: 携带 Bearer Token 请求接口
-    API->>MW: 认证中间件校验 Token
+    U->>FE: 发起操作
+    FE->>API: 携带 Bearer Token
+    API->>MW: JWT 校验
     MW->>RBAC: 校验接口权限
-    alt 菜单 / 管理接口
+    alt 管理接口
         RBAC-->>MW: 返回是否允许
-    else 智能体 / 工具资源
-        MW->>GOV: 校验用户是否可使用智能体
-        GOV->>GOV: 校验智能体是否可使用资源
+    else 智能体资源
+        MW->>Grant: 校验用户是否可使用智能体
+        Grant->>Grant: 校验智能体是否可使用资源
     end
-    alt 通过
-        MW->>Core: 调用原生能力或扩展能力
+    alt 需要审批
+        API->>Cap: 检查审批策略
+        Cap-->>FE: 返回审批请求
+    else 通过
+        MW->>Core: 调用原生能力
         Core-->>API: 返回结果
-        API->>AUD: 记录操作审计
+        API->>AUD: 记录审计事件
+        AUD->>PG: 写入审计日志
         API-->>FE: 返回成功
     else 拒绝
         API->>AUD: 记录拒绝审计
+        AUD->>PG: 写入审计日志
         API-->>FE: 返回 401 / 403
     end
 ```
 
-## 9. 审计日志设计
+### 9.2 审计日志设计
 
-审计日志用于记录用户登录平台、使用平台、操作智能体、智能体调用工具等行为。
-
-当前已接入审计事件：
+已接入审计事件：
 
 - 登录成功 / 登录失败
-- 注册
-- API 变更类操作
+- 用户注册
+- API 变更操作
 - API 权限拒绝
-- 会话 / 聊天相关操作
-- Agent 执行链路中的关键行为
+- 聊天消息发送 / 重连 / 停止
+- 文件上传
+- Agent 执行链路关键行为
+- 审批请求创建 / 审批 / 拒绝
+- 智能体授权变更
+- 配置变更
 
 审计字段：
 
-```text
-id
-timestamp
-actor
-action
-resource_type
-resource_id
-status
-ip
-user_agent
-detail
-```
+| 字段 | 说明 |
+|------|------|
+| id | 唯一标识 |
+| timestamp | 事件时间 |
+| actor | 操作者 |
+| action | 操作类型 |
+| resource_type | 资源类型 |
+| resource_id | 资源标识 |
+| status | success / failure |
+| ip | 客户端 IP |
+| user_agent | 客户端信息 |
+| detail | 操作详情（JSON） |
 
-本阶段已修复一个关键问题：
+所有审计日志存储在 PostgreSQL `nexora_audit_events` 表，支持分页查询和多条件过滤。
 
-- 登录认证成功后会写审计日志。
-- 如果审计文件因本地权限问题写入失败，不能阻断登录。
-- 当前 `record_audit_event` 已调整为：写入失败只记录 warning，主流程继续返回。
+## 10. 部署架构
 
-后续建议把审计从本地 JSONL 升级为 SQLite、PostgreSQL 或统一日志平台。
-
-## 10. Agent 与工具治理设计
-
-工具、MCP、Skill 是智能体的能力资源，不直接暴露给普通用户。
-
-```mermaid
-flowchart TD
-    Role["角色"] --> AgentAccess["可使用智能体"]
-    AgentAccess --> Agent["智能体"]
-    Agent --> ToolAccess["允许 Tool"]
-    Agent --> MCPAccess["允许 MCP"]
-    Agent --> SkillAccess["允许 Skill"]
-    User["用户"] --> Role
-    User --> Chat["聊天 / 工作区"]
-    Chat --> Agent
-```
-
-工作区过滤流程：
-
-1. 前端读取当前用户可用智能体。
-2. 用户选择一个智能体。
-3. 前端请求工具、MCP、Skill 列表。
-4. 前端只展示该智能体有权限的资源。
-5. 后端执行时再次检查智能体资源授权。
-
-工具风险分层：
-
-- 只读查询类：日志查询、告警查询、CMDB 查询、发布记录查询。
-- 普通变更类：服务重启、扩缩容、配置变更、发布操作。
-- 高危操作类：生产数据库变更、批量删除、权限变更、核心系统回滚。
-
-后续高危操作需要接入审批中心。
-
-## 11. 登录认证现状
-
-当前认证启用方式：
-
-- 启动脚本 `start-qwenpaw-zh.sh` 默认设置 `QWENPAW_AUTH_ENABLED=true`。
-- 登录页标题已调整为 `The future starts now`。
-- 品牌 logo、favicon、页面标题已替换为Nexora AI 风格。
-- 右上角展示当前登录用户名。
-- 退出登录入口放在页面右上角。
-
-当前已验证：
-
-- 服务可在 `127.0.0.1:8088` 正常启动。
-- 登录接口返回 `200`。
-- 登录问题根因已定位为审计日志写入权限导致接口 `500`，现已通过审计容错修复。
-
-当前可用管理员账号：
-
-```text
-admin
-```
-
-密码由本地认证文件保存为哈希，不在方案文档中记录明文。
-
-## 12. 部署架构
-
-本地开发部署：
+### 10.1 开发环境
 
 ```mermaid
 flowchart LR
-    Repo["本地代码<br/>qwenpaw-src"] --> Build["前端构建<br/>console/dist"]
-    Build --> Static["后端静态目录<br/>src/qwenpaw/console"]
-    Repo --> App["QwenPaw 服务<br/>127.0.0.1:8088"]
-    App --> Data[".qwenpaw / .qwenpaw.secret"]
+    Repo["本地代码"] --> Build["前端构建"]
+    Build --> Static["后端静态目录"]
+    Repo --> App["FastAPI 服务<br/>127.0.0.1:8088"]
+    App --> PG["PostgreSQL 16<br/>Docker 容器"]
     Browser["浏览器"] --> App
 ```
 
-本地启动：
-
-```bash
-QWENPAW_PORT=8088 ./start-qwenpaw-zh.sh
-```
-
-外网访问部署：
+### 10.2 生产环境
 
 ```mermaid
 flowchart TB
-    User["互联网用户"] --> HTTPS["HTTPS 域名"]
-    HTTPS --> Access["访问认证<br/>Cloudflare Access / SSO"]
-    Access --> Tunnel["Cloudflare Tunnel / Nginx"]
-    Tunnel --> App["Nexora AI 服务"]
-    App --> LocalData["配置 / 用户 / Agent 数据"]
-    App --> OpsNetwork["内网运维工具网络"]
+    User["用户"] --> HTTPS["HTTPS"]
+    HTTPS --> Gateway["Nginx / Cloudflare"]
+    Gateway --> App["Nexora AI 服务<br/>Docker 容器"]
+    App --> PG["PostgreSQL 16<br/>Docker 容器"]
+    App --> LLM["LLM 供应商<br/>通义千问 / OpenAI / DeepSeek"]
+    App --> Channels["消息渠道<br/>钉钉 / 飞书 / 企业微信"]
 ```
 
-推荐生产环境增加：
+推荐生产环境配置：
 
-- HTTPS。
-- Cloudflare Access 或公司 SSO。
-- IP 白名单。
-- 服务进程守护。
-- 审计日志持久化到数据库或日志平台。
-- 配置和密钥备份。
-- 私有 GitHub 仓库和发布分支。
+- HTTPS + Nginx 或 Cloudflare
+- PostgreSQL 独立部署或容器化
+- 数据卷持久化
+- 服务进程守护
+- 日志轮转
+- 定期备份
 
-## 13. Git 与上游同步策略
+## 11. Git 与上游同步策略
 
-当前建议保持两个远端：
+保持两个远端：
 
-- `origin`：Nexora AI 自有仓库。
-- `upstream`：QwenPaw 原开源仓库。
+- `origin`：Nexora 自有仓库
+- `upstream`：QwenPaw 原开源仓库
 
 推荐分支：
 
-- `main`：稳定可运行版本。
-- `develop`：日常开发版本。
-- `feature/*`：单个功能开发。
-- `sync/upstream-YYYYMMDD`：同步上游临时分支。
+- `main`：稳定可运行版本
+- `develop`：日常开发
+- `feature/*`：单个功能开发
+- `sync/upstream-YYYYMMDD`：同步上游临时分支
 
-同步流程：
+同步后验证清单：
 
-```bash
-git fetch upstream
-git checkout main
-git checkout -b sync/upstream-YYYYMMDD
-git merge upstream/main
-```
+- 登录 / 退出
+- 用户权限管理
+- 智能体授权
+- 聊天功能
+- 工具 / MCP / Skill 列表过滤
+- 审计日志
+- Token 消耗统计
+- 模型配置
+- 前端构建
+- 后端启动
+- Docker 构建
 
-每次同步重点验证：
+## 12. 已完成功能清单
 
-- 登录页。
-- 用户权限。
-- 智能体权限。
-- 聊天页。
-- 工具、MCP、Skill 列表过滤。
-- 日志审计。
-- 模型配置。
-- 前端构建。
-- 后端启动。
+| 模块 | 功能 | 状态 |
+|------|------|------|
+| 品牌 | 中文化、logo、页面标题替换 | 已完成 |
+| 认证 | JWT 登录、Token 校验、退出登录 | 已完成 |
+| RBAC | 用户管理、角色管理（admin/operator） | 已完成 |
+| 智能体授权 | agent_grants 表、批量授权/撤销 | 已完成 |
+| 能力审批 | 审批策略、审批队列、管理员审批 | 已完成 |
+| 资源治理 | 智能体可用 Tool/MCP/Skill 配置 | 已完成 |
+| 审计日志 | PostgreSQL 存储、分页查询、多条件过滤 | 已完成 |
+| Token 统计 | 按用户/智能体/模型/日期统计、可视化仪表盘 | 已完成 |
+| 数据库 | PostgreSQL 全量迁移、Alembic 版本管理 | 已完成 |
+| Docker | Dockerfile、docker-compose、健康检查 | 已完成 |
+| 测试 | 单元测试 96 passed、100 用户压力测试 | 已完成 |
 
-## 14. 当前完成情况
+## 13. 后续路线图
 
-已完成：
+### 近期
 
-- 中文化与品牌替换。
-- 登录页改造。
-- 登录认证启用。
-- 用户管理、角色管理、权限管理。
-- 菜单结构重组。
-- Header 用户名展示与退出登录。
-- 用户 -> 角色 -> 菜单 / 接口权限路线。
-- 用户 -> 角色 -> 智能体 -> Tool / MCP / Skill 权限路线。
-- 智能体权限页面。
-- 工作区资源按智能体权限过滤。
-- 日志审计页面。
-- 登录审计容错修复。
-- 服务已在 `127.0.0.1:8088` 验证可启动，登录接口返回正常。
+- JWT Secret 迁移 PostgreSQL
+- 聊天页智能体选择体验优化
+- SSO / LDAP / OIDC 接入评估
 
-待增强：
+### 中期
 
-- 审计日志持久化从本地 JSONL 升级为 SQLite / PostgreSQL / 日志平台。
-- 后端工具执行链路继续补全细粒度审计。
-- 高危工具审批流程。
-- 工具风险等级、环境等级、审批策略配置。
-- 企业 SSO / Cloudflare Access。
-- 自动化测试与发布流程。
+- 运维工具接入（日志查询、监控告警、CMDB）
+- 审计日志留存策略与归档
+- 多环境隔离
 
-## 15. 后续路线图
+### 远期
 
-### 第一阶段：基础治理闭环
+- CI/CD 与 Kubernetes 查询能力
+- 多实例高可用部署
+- 操作审计大屏
 
-- 完善用户、角色、菜单、接口权限。
-- 完善智能体授权。
-- 完善资源过滤和后端拦截。
-- 固化二开目录规范。
+## 14. 总结
 
-### 第二阶段：审计与安全
+Nexora AI Platform 已从"QwenPaw 二开界面"进入"具备企业级治理能力的 AI 工作台"阶段。
 
-- 扩展登录、页面操作、接口操作、Agent 操作审计。
-- 审计日志查询、过滤、导出。
-- 将审计日志持久化到更可靠存储。
-- 增加安全策略配置。
+当前架构核心：
 
-### 第三阶段：审批流
-
-- 高危工具调用进入审批中心。
-- 支持审批通过、拒绝、超时、撤回。
-- 审批记录进入审计日志。
-- Agent 执行前根据策略自动判断是否需要审批。
-
-### 第四阶段：运维工具接入
-
-- 接入日志查询。
-- 接入监控告警。
-- 接入 CMDB。
-- 接入 CI/CD 查询与发布能力。
-- 接入 Kubernetes 和云资源查询能力。
-
-### 第五阶段：生产化部署
-
-- Cloudflare Tunnel 或正式反向代理。
-- HTTPS 与统一身份认证。
-- 服务进程守护。
-- 数据备份恢复。
-- 监控告警。
-- 多环境隔离。
-
-## 16. 总结
-
-Nexora AI Platform当前已经从“QwenPaw 二开界面”进入“具备企业运维治理雏形的平台”阶段。
-
-当前架构的核心是：
-
-- QwenPaw 负责 Agent、聊天、工具、MCP、Skill 等基础能力。
-- Nexora 扩展层负责用户权限、智能体授权、资源治理、审计日志和后续审批。
-- 权限体系按两条线建设：用户权限控制平台访问，智能体权限控制工具使用。
-- 二开代码尽量独立，后续可以更平滑地合并上游更新。
+- QwenPaw 负责 Agent、聊天、工具、MCP、Skill、Coding 等基础能力
+- Nexora 扩展层负责用户权限、智能体授权、能力审批、资源治理、审计日志、Token 统计
+- 三层权限模型：平台访问 → 智能体授权 → 能力审批
+- 全部业务数据存储在 PostgreSQL，通过 Alembic 管理迁移
+- 二开代码独立隔离，可平滑合并上游更新
