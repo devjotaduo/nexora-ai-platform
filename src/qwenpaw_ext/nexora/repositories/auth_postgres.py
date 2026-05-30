@@ -1,4 +1,4 @@
-"""PostgreSQL repository for CJ AIops users, roles, and permissions."""
+"""PostgreSQL repository for Nexora users, roles, and permissions."""
 from __future__ import annotations
 
 import time

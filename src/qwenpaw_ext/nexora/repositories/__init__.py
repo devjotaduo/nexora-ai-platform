@@ -1,2 +1,2 @@
-"""Repository implementations for CJ AIops storage."""
+"""Repository implementations for Nexora storage."""
 

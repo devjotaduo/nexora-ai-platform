@@ -1,2 +1,2 @@
-"""CJ AIops platform extensions."""
+"""Nexora platform extensions."""
 

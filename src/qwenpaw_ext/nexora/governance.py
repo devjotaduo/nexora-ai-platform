@@ -1,4 +1,4 @@
-"""CJ AIops operation governance policy store.
+"""Nexora operation governance policy store.
 
 The upstream QwenPaw pages own tool, MCP, and skill configuration.  This
 extension stores only the AIops governance metadata that decides who can use a

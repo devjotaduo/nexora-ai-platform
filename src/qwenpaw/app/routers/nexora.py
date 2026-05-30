@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""CJ AIops extension API routes."""
+"""Nexora extension API routes."""
 from __future__ import annotations
 
 import asyncio

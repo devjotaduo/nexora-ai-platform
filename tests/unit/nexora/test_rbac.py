@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Unit tests for CJ AIops RBAC policy mapping."""
+"""Unit tests for Nexora RBAC policy mapping."""
 from __future__ import annotations
 
 import pytest

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Unit tests for CJ AIops platform approval requests."""
+"""Unit tests for Nexora platform approval requests."""
 from __future__ import annotations
 
 from pathlib import Path

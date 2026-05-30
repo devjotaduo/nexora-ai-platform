@@ -72,7 +72,7 @@ load_envs_into_environ()
 
 
 def _run_nexora_startup_migrations() -> None:
-    """Keep CJ AIops governance data aligned with configured agents."""
+    """Keep Nexora governance data aligned with configured agents."""
     try:
         config = load_config(get_config_path())
         profile_ids = list(config.agents.profiles.keys())
@@ -90,19 +90,19 @@ def _run_nexora_startup_migrations() -> None:
         if ordered_ids != config.agents.agent_order:
             config.agents.agent_order = ordered_ids
             save_config(config, get_config_path())
-            logger.info("CJ AIops normalized agent order for governance")
+            logger.info("Nexora normalized agent order for governance")
 
         from qwenpaw_ext.nexora.governance import migrate_governance_data
 
         result = migrate_governance_data(ordered_ids)
         if result.get("changed"):
             logger.info(
-                "CJ AIops governance migration applied: %s",
+                "Nexora governance migration applied: %s",
                 result,
             )
     except Exception:
         logger.warning(
-            "CJ AIops startup migration skipped due to error",
+            "Nexora startup migration skipped due to error",
             exc_info=True,
         )
 
@@ -308,10 +308,10 @@ async def lifespan(  # pylint: disable=too-many-statements,too-many-branches
     try:
         from qwenpaw_ext.nexora.db import check_database_health
         check_database_health()
-        logger.info("CJ AIops PostgreSQL health check passed")
+        logger.info("Nexora PostgreSQL health check passed")
     except Exception:
         logger.error(
-            "CJ AIops PostgreSQL health check failed — "
+            "Nexora PostgreSQL health check failed — "
             "database may be unavailable",
             exc_info=True,
         )

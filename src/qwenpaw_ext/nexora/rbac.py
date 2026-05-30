@@ -1,4 +1,4 @@
-"""CJ AIops role-based access control extension.
+"""Nexora role-based access control extension.
 
 This module keeps the platform-specific RBAC policy away from QwenPaw core
 modules.  Core auth still owns password/token persistence; this extension owns

@@ -1,4 +1,4 @@
-"""Create CJ AIops audit and approval tables."""
+"""Create Nexora audit and approval tables."""
 
 from __future__ import annotations
 

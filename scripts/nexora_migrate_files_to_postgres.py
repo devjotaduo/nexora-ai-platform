@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Migrate first-phase CJ AIops files into PostgreSQL.
+"""Migrate first-phase Nexora files into PostgreSQL.
 
 Requires NEXORA_DB_URL to point at the target PostgreSQL database.
 The script is idempotent for existing primary keys: duplicate rows are skipped.
@@ -302,7 +302,7 @@ def main() -> int:
         "--secret-dir",
         default=os.environ.get("QWENPAW_SECRET_DIR")
         or str(Path.home() / ".qwenpaw.secret"),
-        help="Directory containing CJ AIops JSON/JSONL files.",
+        help="Directory containing Nexora JSON/JSONL files.",
     )
     parser.add_argument(
         "--working-dir",

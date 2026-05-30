@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Unit tests for CJ AIops audit persistence."""
+"""Unit tests for Nexora audit persistence."""
 from __future__ import annotations
 
 import json

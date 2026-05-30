@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Tests for CJ AIops database storage switches."""
+"""Tests for Nexora database storage switches."""
 from __future__ import annotations
 
 import pytest

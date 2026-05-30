@@ -1,4 +1,4 @@
-"""Database helpers for CJ AIops persistent storage."""
+"""Database helpers for Nexora persistent storage."""
 from __future__ import annotations
 
 import logging
@@ -12,7 +12,7 @@ DB_URL_ENV = "NEXORA_DB_URL"
 
 
 def get_database_url() -> str:
-    """Return the configured CJ AIops database URL."""
+    """Return the configured Nexora database URL."""
     return os.environ.get(DB_URL_ENV, "").strip()
 
 
@@ -23,7 +23,7 @@ def is_database_enabled() -> bool:
 
 @lru_cache(maxsize=1)
 def get_engine() -> Any:
-    """Create and cache a SQLAlchemy engine for CJ AIops storage."""
+    """Create and cache a SQLAlchemy engine for Nexora storage."""
     database_url = get_database_url()
     if not database_url:
         raise RuntimeError(f"{DB_URL_ENV} is not configured")
@@ -54,7 +54,7 @@ _schema_initialized = False
 
 
 def initialize_schema() -> None:
-    """Create first-phase CJ AIops PostgreSQL tables if needed.
+    """Create first-phase Nexora PostgreSQL tables if needed.
 
     This is intentionally conservative: it creates missing tables/indexes but
     does not drop or rewrite existing schema. Later production migrations
@@ -358,7 +358,7 @@ def check_database_health() -> None:
             conn.execute(text("SELECT 1"))
     except Exception as exc:
         raise RuntimeError(
-            f"CJ AIops PostgreSQL health check failed: {exc}"
+            f"Nexora PostgreSQL health check failed: {exc}"
         ) from exc
 
 

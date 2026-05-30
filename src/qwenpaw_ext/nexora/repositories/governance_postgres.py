@@ -1,4 +1,4 @@
-"""PostgreSQL repository for CJ AIops governance policies."""
+"""PostgreSQL repository for Nexora governance policies."""
 from __future__ import annotations
 
 import json

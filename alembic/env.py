@@ -1,4 +1,4 @@
-"""Alembic environment for CJ AIops database migrations."""
+"""Alembic environment for Nexora database migrations."""
 from __future__ import annotations
 
 import os

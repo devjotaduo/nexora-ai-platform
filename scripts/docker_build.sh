@@ -26,6 +26,6 @@ docker build -f "$DOCKERFILE" \
     ${QWENPAW_ENABLED_CHANNELS:+--build-arg QWENPAW_ENABLED_CHANNELS="$QWENPAW_ENABLED_CHANNELS"} \
     -t "$TAG" "$@" .
 echo "[docker_build] Done."
-echo "[docker_build] CJ AIops app port: 8088 (default). Override with -e QWENPAW_PORT=<port>."
+echo "[docker_build] Nexora app port: 8088 (default). Override with -e QWENPAW_PORT=<port>."
 echo "[docker_build] Run: docker run -p 127.0.0.1:8088:8088 $TAG"
 echo "[docker_build] Or:  docker run -e QWENPAW_PORT=3000 -p 127.0.0.1:3000:3000 $TAG"

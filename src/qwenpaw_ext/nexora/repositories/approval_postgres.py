@@ -1,4 +1,4 @@
-"""PostgreSQL repository for CJ AIops approval requests."""
+"""PostgreSQL repository for Nexora approval requests."""
 from __future__ import annotations
 
 import json
