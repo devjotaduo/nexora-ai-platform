@@ -95,12 +95,12 @@ export default function LoginPage() {
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <img
             src="/logo.png"
-            alt="QwenPaw"
-            style={{ height: 48, marginBottom: 12 }}
+            alt="Nexora"
+            style={{ height: 180, marginBottom: 16 }}
           />
-          <h2 style={{ margin: 0, fontWeight: 600, fontSize: 20 }}>
+          <p style={{ margin: 0, fontWeight: 400, fontSize: 13, color: isDark ? "rgba(255,255,255,0.5)" : "#999", letterSpacing: 1 }}>
             {isRegister ? t("login.registerTitle") : t("login.title")}
-          </h2>
+          </p>
           {!hasUsers && (
             <p
               style={{
