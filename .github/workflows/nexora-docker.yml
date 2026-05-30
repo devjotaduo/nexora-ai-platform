@@ -49,7 +49,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Alibaba Cloud ACR
-        if: ${{ secrets.ALIYUN_ACR_USERNAME != '' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.ACR_REGISTRY }}
@@ -62,17 +61,10 @@ jobs:
           TAG="${{ github.event.inputs.tag || 'latest' }}"
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           DATE=$(date +%Y%m%d)
-
-          # GHCR tags (always)
           TAGS="${GHCR_REGISTRY}/${GHCR_IMAGE}:${TAG}"
           TAGS="${TAGS},${GHCR_REGISTRY}/${GHCR_IMAGE}:${DATE}-${SHORT_SHA}"
-
-          # ACR tags (if credentials configured)
-          if [ -n "${{ secrets.ALIYUN_ACR_USERNAME }}" ]; then
-            TAGS="${TAGS},${ACR_REGISTRY}/${ACR_IMAGE}:${TAG}"
-            TAGS="${TAGS},${ACR_REGISTRY}/${ACR_IMAGE}:${DATE}-${SHORT_SHA}"
-          fi
-
+          TAGS="${TAGS},${ACR_REGISTRY}/${ACR_IMAGE}:${TAG}"
+          TAGS="${TAGS},${ACR_REGISTRY}/${ACR_IMAGE}:${DATE}-${SHORT_SHA}"
           echo "tags=${TAGS}" >> $GITHUB_OUTPUT
 
       - name: Build and push
