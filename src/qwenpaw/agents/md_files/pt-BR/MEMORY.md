@@ -1,26 +1,26 @@
 ---
-summary: "Agent long-term memory — tool setup and lessons learned"
+summary: "Memória de longo prazo do agente — configuração de ferramentas e lições aprendidas"
 read_when:
-  - Bootstrapping a workspace manually
+  - Inicializando um workspace manualmente
 ---
 
-## Tool Setup
+## Configuração de Ferramentas
 
-Skills define _how_ tools work. This file is for _your_ specifics — the stuff that's unique to your setup.
+As skills definem _como_ as ferramentas funcionam. Este arquivo é para _suas_ especificidades — as coisas que são únicas na sua configuração.
 
-### What Goes Here
+### O que Vai Aqui
 
-Add whatever helps you do your job. This is your cheat sheet.
+Adicione o que ajuda você a fazer seu trabalho. Este é o seu guia de referência rápida.
 
-Things like:
+Coisas como:
 
-- SSH hosts and aliases
-- Other user-related settings when executing skills
+- Hosts SSH e aliases
+- Outras configurações relacionadas ao usuário ao executar skills
 
-### Examples
+### Exemplos
 
 ```markdown
 ### SSH
 
-- home-server → 192.168.1.100, user: admin
+- servidor-casa → 192.168.1.100, usuário: admin
 ```

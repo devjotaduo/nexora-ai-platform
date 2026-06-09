@@ -36,20 +36,20 @@ EOF
 # Auto-initialize if config.json is missing (bind mount with empty directory).
 if [ ! -f "${QWENPAW_WORKING_DIR}/config.json" ]; then
     echo "No config.json found in ${QWENPAW_WORKING_DIR}"
-    echo "Running Nexora initialization..."
+    echo "Executando inicialização do Nexora..."
     qwenpaw init --defaults --accept-security
-    echo "Initialization complete."
+    echo "Inicialização concluída."
 else
-  echo "Config found in ${QWENPAW_WORKING_DIR}, skipping initialization."
+  echo "Configuração encontrada em ${QWENPAW_WORKING_DIR}, ignorando inicialização."
 fi
 
 # Run Alembic migrations if NEXORA_DB_URL is set.
 if [ -n "${NEXORA_DB_URL:-}" ]; then
-    echo "Running database migrations..."
+    echo "Executando migrações do banco de dados..."
     if alembic upgrade head; then
-        echo "Database migrations complete."
+        echo "Migrações do banco de dados concluídas."
     else
-        echo "WARNING: Database migration failed. Tables may be created on first access." >&2
+        echo "AVISO: Falha na migração do banco de dados. As tabelas podem ser criadas no primeiro acesso." >&2
     fi
 fi
 

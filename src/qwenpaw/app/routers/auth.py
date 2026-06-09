@@ -116,7 +116,7 @@ def _current_username(request: Request) -> str:
     token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
     username = verify_token(token) if token else None
     if username is None:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401, detail="Não autenticado")
     return username
 
 
@@ -166,7 +166,7 @@ async def login(req: LoginRequest, request: Request):
             detail={"reason": "invalid_credentials"},
             request=request,
         )
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
     user = get_user(req.username)
     record_audit_event(
@@ -203,13 +203,13 @@ async def register(req: RegisterRequest, request: Request):
     if has_registered_users():
         raise HTTPException(
             status_code=403,
-            detail="User already registered",
+            detail="Usuário já cadastrado",
         )
 
     if not req.username.strip() or not req.password.strip():
         raise HTTPException(
             status_code=400,
-            detail="Username and password are required",
+            detail="Nome de usuário e senha são obrigatórios",
         )
 
     token = register_user(req.username.strip(), req.password, req.expires_in)
@@ -256,13 +256,13 @@ async def verify(request: Request):
     auth_header = request.headers.get("Authorization", "")
     token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
     if not token:
-        raise HTTPException(status_code=401, detail="No token provided")
+        raise HTTPException(status_code=401, detail="Nenhum token fornecido")
 
     username = verify_token(token)
     if username is None:
         raise HTTPException(
             status_code=401,
-            detail="Invalid or expired token",
+            detail="Token inválido ou expirado",
         )
 
     user = get_user(username) or {}
@@ -285,7 +285,7 @@ async def me(request: Request):
         )
     user = get_user(username)
     if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401, detail="Não autenticado")
 
     role_map = {role["id"]: role for role in list_roles()}
     permissions = set()
@@ -313,7 +313,7 @@ async def add_user(req: CreateUserRequest, request: Request):
     _require_user_admin(request)
     user = create_user(req.username, req.password, req.roles)
     if user is None:
-        raise HTTPException(status_code=400, detail="Failed to create user")
+        raise HTTPException(status_code=400, detail="Falha ao criar usuário")
     return user
 
 
@@ -332,7 +332,7 @@ async def modify_user(
         password=req.password,
     )
     if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
     return user
 
 
@@ -341,7 +341,7 @@ async def remove_user(username: str, request: Request):
     """Delete a platform user."""
     current = _require_user_admin(request)
     if username == current:
-        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+        raise HTTPException(status_code=400, detail="Não é possível excluir a si mesmo")
     if not delete_user(username):
         raise HTTPException(status_code=400, detail="Failed to delete user")
     return {"deleted": True}
@@ -365,7 +365,7 @@ async def add_role(req: CreateRoleRequest, request: Request):
         permissions=req.permissions,
     )
     if role is None:
-        raise HTTPException(status_code=400, detail="Failed to create role")
+        raise HTTPException(status_code=400, detail="Falha ao criar papel")
     return role
 
 
@@ -384,7 +384,7 @@ async def modify_role(
         permissions=req.permissions,
     )
     if role is None:
-        raise HTTPException(status_code=404, detail="Role not found")
+        raise HTTPException(status_code=404, detail="Papel não encontrado")
     return role
 
 
@@ -433,12 +433,12 @@ async def update_profile(req: UpdateProfileRequest, request: Request):
     caller_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
     caller_username = verify_token(caller_token) if caller_token else None
     if caller_username is None:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401, detail="Não autenticado")
 
     if not req.new_username and not req.new_password:
         raise HTTPException(
             status_code=400,
-            detail="Nothing to update",
+            detail="Nada a atualizar",
         )
 
     if req.new_username is not None and not req.new_username.strip():
@@ -450,7 +450,7 @@ async def update_profile(req: UpdateProfileRequest, request: Request):
     if req.new_password is not None and not req.new_password.strip():
         raise HTTPException(
             status_code=400,
-            detail="Password cannot be empty",
+            detail="Senha não pode estar vazia",
         )
 
     token = update_credentials(
@@ -471,7 +471,7 @@ async def update_profile(req: UpdateProfileRequest, request: Request):
         )
         raise HTTPException(
             status_code=401,
-            detail="Current password is incorrect",
+            detail="Senha atual está incorreta",
         )
 
     username = req.new_username.strip() if req.new_username else ""
@@ -525,7 +525,7 @@ async def revoke_single_token(req: RevokeTokenRequest, request: Request):
     caller_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
     caller_username = verify_token(caller_token) if caller_token else None
     if not caller_token or caller_username is None:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401, detail="Não autenticado")
 
     # Determine which token to revoke
     token_to_revoke = req.token if req.token else caller_token
@@ -535,7 +535,7 @@ async def revoke_single_token(req: RevokeTokenRequest, request: Request):
     if not success:
         raise HTTPException(
             status_code=500,
-            detail="Failed to revoke token",
+            detail="Falha ao revogar token",
         )
 
     record_audit_event(
@@ -581,13 +581,13 @@ async def revoke_all_sessions(request: Request):
     caller_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
     caller_username = verify_token(caller_token) if caller_token else None
     if not caller_token or caller_username is None:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401, detail="Não autenticado")
 
     success = revoke_all_tokens()
     if not success:
         raise HTTPException(
             status_code=500,
-            detail="Failed to revoke tokens",
+            detail="Falha ao revogar tokens",
         )
 
     record_audit_event(
@@ -598,6 +598,6 @@ async def revoke_all_sessions(request: Request):
         request=request,
     )
     return {
-        "message": "All tokens have been revoked. Please login again.",
+        "message": "Todos os tokens foram revogados. Por favor, faça login novamente.",
         "revoked": True,
     }

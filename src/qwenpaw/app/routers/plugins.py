@@ -573,7 +573,7 @@ async def install_plugin(
             resource_type="plugin",
             resource_id=source,
             resource_name=source,
-            summary=f"安装插件：{source}",
+            summary=f"Instalar plugin: {source}",
             payload={
                 "operation": "install_source",
                 "source": source,
@@ -582,7 +582,7 @@ async def install_plugin(
         )
         return pending_approval_response(
             approval,
-            "插件安装申请已提交，审批通过后会自动安装。",
+            "Solicitação de instalação de plugin enviada. Será instalado automaticamente após aprovação.",
         )
 
     loader = getattr(request.app.state, "plugin_loader", None)
@@ -719,7 +719,7 @@ async def upload_plugin(
             resource_type="plugin",
             resource_id=file.filename,
             resource_name=file.filename,
-            summary=f"上传并安装插件：{file.filename}",
+            summary=f"Carregar e instalar plugin: {file.filename}",
             payload={
                 "operation": "install_uploaded_zip",
                 "staged_zip_path": str(staged_path),
@@ -839,7 +839,7 @@ async def uninstall_plugin(plugin_id: str, request: Request):
             resource_type="plugin",
             resource_id=plugin_id,
             resource_name=plugin_id,
-            summary=f"卸载插件：{plugin_id}",
+            summary=f"Desinstalar plugin: {plugin_id}",
             payload={
                 "operation": "uninstall",
                 "plugin_id": plugin_id,
@@ -847,7 +847,7 @@ async def uninstall_plugin(plugin_id: str, request: Request):
         )
         return pending_approval_response(
             approval,
-            "插件卸载申请已提交，审批通过后将被卸载。",
+            "Solicitação de desinstalação de plugin enviada. Será desinstalado após aprovação.",
         )
 
     loader = getattr(request.app.state, "plugin_loader", None)
@@ -899,7 +899,7 @@ async def uninstall_plugin(plugin_id: str, request: Request):
         record_auto_approved(
             request, action="plugin.uninstall", resource_type="plugin",
             resource_id=plugin_id, resource_name=plugin_id,
-            summary=f"卸载插件：{plugin_id}（自动审批）",
+            summary=f"Desinstalar plugin: {plugin_id} (aprovação automática)",
             payload={"operation": "uninstall", "plugin_id": plugin_id},
             result={"uninstalled": True},
         )

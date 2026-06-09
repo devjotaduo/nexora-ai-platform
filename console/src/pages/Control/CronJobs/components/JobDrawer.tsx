@@ -427,7 +427,7 @@ export function JobDrawer({
                 <Form.Item
                   name="cronDaysOfWeek"
                   label={t("cronJobs.cronDaysOfWeek")}
-                  rules={[{ required: true, message: "请选择至少一天" }]}
+                  rules={[{ required: true, message: "Por favor, selecione pelo menos um dia" }]}
                 >
                   <Checkbox.Group
                     options={[
@@ -627,7 +627,7 @@ export function JobDrawer({
             options={channelOptions}
             onSearch={setChannelSearch}
             onBlur={() => setChannelSearch("")}
-            notFoundContent="输入自定义值后按 Enter"
+            notFoundContent="Digite um valor personalizado e pressione Enter"
             filterOption={(input, option) =>
               (option?.label?.toString() || "")
                 .toLowerCase()
@@ -649,7 +649,7 @@ export function JobDrawer({
             options={userOptions}
             onSearch={setUserSearch}
             onBlur={() => setUserSearch("")}
-            notFoundContent="输入自定义值后按 Enter"
+            notFoundContent="Digite um valor personalizado e pressione Enter"
             filterOption={(input, option) =>
               (option?.label?.toString() || "")
                 .toLowerCase()
@@ -673,7 +673,7 @@ export function JobDrawer({
             options={sessionOptions}
             onSearch={setSessionSearch}
             onBlur={() => setSessionSearch("")}
-            notFoundContent="输入自定义值后按 Enter"
+            notFoundContent="Digite um valor personalizado e pressione Enter"
             filterOption={(input, option) =>
               (option?.label?.toString() || "")
                 .toLowerCase()

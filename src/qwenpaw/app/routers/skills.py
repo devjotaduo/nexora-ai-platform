@@ -820,7 +820,7 @@ async def start_install_from_hub(
             resource_type="skill",
             resource_id=f"{workspace.agent_id}:{resource_name}",
             resource_name=resource_name,
-            summary=f"从 Hub 安装 Skill：{resource_name}",
+            summary=f"Instalar Skill do Hub: {resource_name}",
             payload={
                 "operation": "workspace.hub_install",
                 "agent_id": workspace.agent_id,
@@ -829,7 +829,7 @@ async def start_install_from_hub(
         )
         return pending_approval_response(
             approval,
-            "Skill 安装申请已提交，审批通过后会进入当前智能体。",
+            "Solicitação de instalação de Skill enviada. Será aplicada ao agente após aprovação.",
         )
     task = HubInstallTask(
         bundle_url=request_body.bundle_url,
@@ -945,7 +945,7 @@ async def create_skill(
             resource_type="skill",
             resource_id=f"{workspace.agent_id}:{body.name}",
             resource_name=body.name,
-            summary=f"新增智能体 Skill：{body.name}",
+            summary=f"Adicionar Skill ao agente: {body.name}",
             payload={
                 "operation": "workspace.create",
                 "agent_id": workspace.agent_id,
@@ -1448,7 +1448,7 @@ async def delete_pool_skill(request: Request, skill_name: str) -> dict[str, Any]
         )
         return pending_approval_response(
             approval,
-            "Skill 删除申请已提交，审批通过后将被删除。",
+            "Solicitação de exclusão de Skill enviada. Será removida após aprovação.",
         )
     deleted = SkillPoolService().delete_skill(skill_name)
     if not deleted:
@@ -1563,7 +1563,7 @@ async def batch_delete_skills(
             resource_type="skill",
             resource_id=f"{workspace.agent_id}:{','.join(skills)}",
             resource_name=", ".join(skills),
-            summary=f"批量删除智能体 Skill：{', '.join(skills)}",
+            summary=f"Excluir Skills do agente em lote: {', '.join(skills)}",
             payload={
                 "operation": "workspace.batch_delete",
                 "agent_id": workspace.agent_id,
@@ -1572,7 +1572,7 @@ async def batch_delete_skills(
         )
         return pending_approval_response(
             approval,
-            "Skill 批量删除申请已提交，审批通过后将被删除。",
+            "Solicitação de exclusão em lote de Skills enviada. Serão removidas após aprovação.",
         )
 
     service = SkillService(workspace_dir)
@@ -1596,7 +1596,7 @@ async def batch_delete_skills(
             request, action="skill.delete", resource_type="skill",
             resource_id=f"{workspace.agent_id}:{','.join(skills)}",
             resource_name=", ".join(skills),
-            summary=f"批量删除智能体 Skill：{', '.join(skills)}（自动审批）",
+            summary=f"Excluir Skills do agente em lote: {', '.join(skills)} (aprovação automática)",
             payload={"operation": "workspace.batch_delete", "agent_id": workspace.agent_id, "skill_names": skills},
             result=results,
         )
@@ -1619,7 +1619,7 @@ async def batch_delete_pool_skills(
             resource_type="skill",
             resource_id=f"pool:{','.join(skills)}",
             resource_name=", ".join(skills),
-            summary=f"批量删除技能池 Skill：{', '.join(skills)}",
+            summary=f"Excluir Skills do pool em lote: {', '.join(skills)}",
             payload={
                 "operation": "pool.batch_delete",
                 "skill_names": skills,
@@ -1627,7 +1627,7 @@ async def batch_delete_pool_skills(
         )
         return pending_approval_response(
             approval,
-            "Skill 批量删除申请已提交，审批通过后将被删除。",
+            "Solicitação de exclusão em lote de Skills do pool enviada. Serão removidas após aprovação.",
         )
 
     service = SkillPoolService()
@@ -1649,7 +1649,7 @@ async def batch_delete_pool_skills(
             request, action="skill.delete", resource_type="skill",
             resource_id=f"pool:{','.join(skills)}",
             resource_name=", ".join(skills),
-            summary=f"批量删除技能池 Skill：{', '.join(skills)}（自动审批）",
+            summary=f"Excluir Skills do pool em lote: {', '.join(skills)} (aprovação automática)",
             payload={"operation": "pool.batch_delete", "skill_names": skills},
             result=results,
         )
@@ -1784,7 +1784,7 @@ async def delete_skill(
             resource_type="skill",
             resource_id=f"{workspace.agent_id}:{skill_name}",
             resource_name=skill_name,
-            summary=f"删除智能体 Skill：{skill_name}",
+            summary=f"Excluir Skill do agente: {skill_name}",
             payload={
                 "operation": "workspace.delete",
                 "agent_id": workspace.agent_id,
@@ -1793,7 +1793,7 @@ async def delete_skill(
         )
         return pending_approval_response(
             approval,
-            "Skill 删除申请已提交，审批通过后将被删除。",
+            "Solicitação de exclusão de Skill enviada. Será removida após aprovação.",
         )
 
     service = SkillService(workspace_dir)
@@ -1809,7 +1809,7 @@ async def delete_skill(
             request, action="skill.delete", resource_type="skill",
             resource_id=f"{workspace.agent_id}:{skill_name}",
             resource_name=skill_name,
-            summary=f"删除智能体 Skill：{skill_name}（自动审批）",
+            summary=f"Excluir Skill do agente: {skill_name} (aprovação automática)",
             payload={"operation": "workspace.delete", "agent_id": workspace.agent_id, "skill_name": skill_name},
             result={"deleted": True},
         )

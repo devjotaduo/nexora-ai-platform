@@ -336,14 +336,14 @@ async def list_mcp_tools(
     if mcp_manager is None:
         raise HTTPException(
             503,
-            detail="MCP manager is not ready yet, please try again later",
+            detail="O gerenciador MCP ainda não está pronto, tente novamente mais tarde",
         )
 
     client = await mcp_manager.get_client(client_key)
     if client is None or not getattr(client, "is_connected", False):
         raise HTTPException(
             503,
-            detail="MCP server is still connecting, please try again later",
+            detail="O servidor MCP ainda está se conectando, tente novamente mais tarde",
         )
 
     try:
@@ -438,7 +438,7 @@ async def create_mcp_client(
             resource_type="mcp",
             resource_id=client_key,
             resource_name=client.name,
-            summary=f"新增 MCP：{client.name or client_key}",
+            summary=f"Adicionar MCP: {client.name or client_key}",
             payload={
                 "agent_id": agent.agent_id,
                 "client_key": client_key,
@@ -447,7 +447,7 @@ async def create_mcp_client(
         )
         return MCPClientPendingApprovalResponse(
             approval_request_id=approval["id"],
-            message="MCP 新增申请已提交，审批通过后会进入当前智能体配置。",
+            message="Solicitação de adição de MCP enviada. Será aplicada ao agente após aprovação.",
         )
 
     # Add to agent's config and save
@@ -610,7 +610,7 @@ async def delete_mcp_client(
             resource_type="mcp",
             resource_id=f"{agent.agent_id}:{client_key}",
             resource_name=client_key,
-            summary=f"删除 MCP 客户端：{client_key}",
+            summary=f"Excluir cliente MCP: {client_key}",
             payload={
                 "operation": "delete",
                 "agent_id": agent.agent_id,
@@ -619,7 +619,7 @@ async def delete_mcp_client(
         )
         return pending_approval_response(
             approval,
-            "MCP 删除申请已提交，审批通过后将被删除。",
+            "Solicitação de exclusão de MCP enviada. Será removido após aprovação.",
         )
 
     # Remove client
@@ -634,7 +634,7 @@ async def delete_mcp_client(
             request, action="mcp.delete", resource_type="mcp",
             resource_id=f"{agent.agent_id}:{client_key}",
             resource_name=client_key,
-            summary=f"删除 MCP 客户端：{client_key}（自动审批）",
+            summary=f"Excluir cliente MCP: {client_key} (aprovação automática)",
             payload={"operation": "delete", "agent_id": agent.agent_id, "client_key": client_key},
             result={"deleted": True},
         )

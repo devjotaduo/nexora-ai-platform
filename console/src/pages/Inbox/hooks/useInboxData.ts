@@ -26,15 +26,15 @@ const stripExecutionTimeText = (text: string): string =>
 const getHeartbeatSummary = (status?: string): string => {
   const normalizedStatus = (status || "").toLowerCase();
   if (normalizedStatus === "success") {
-    return "Heartbeat 执行成功";
+    return "Heartbeat executado com sucesso";
   }
   if (normalizedStatus === "timeout") {
-    return "Heartbeat 执行超时";
+    return "Heartbeat excedeu o tempo limite";
   }
   if (normalizedStatus === "cancelled") {
-    return "Heartbeat 已取消";
+    return "Heartbeat cancelado";
   }
-  return "Heartbeat 执行失败";
+  return "Heartbeat falhou";
 };
 
 const mapEventToPushMessage = (

@@ -130,7 +130,7 @@ def _get_multi_agent_manager(request: Request) -> MultiAgentManager:
     if not hasattr(request.app.state, "multi_agent_manager"):
         raise HTTPException(
             status_code=500,
-            detail="MultiAgentManager not initialized",
+            detail="MultiAgentManager não inicializado",
         )
     return request.app.state.multi_agent_manager
 
@@ -503,7 +503,7 @@ async def delete_agent(
     if agentId == "default":
         raise HTTPException(
             status_code=400,
-            detail="Cannot delete the default agent",
+            detail="Não é possível excluir o agente padrão",
         )
 
     manager = _get_multi_agent_manager(request)
@@ -536,7 +536,7 @@ async def unload_agent_runtime(
     if reason == "active_tasks":
         raise HTTPException(
             status_code=409,
-            detail="Agent has active tasks and cannot be unloaded.",
+            detail="O agente possui tarefas ativas e não pode ser descarregado.",
         )
     return {
         "success": unloaded,
@@ -573,7 +573,7 @@ async def toggle_agent_enabled(
     if agentId == "default":
         raise HTTPException(
             status_code=400,
-            detail="Cannot disable the default agent",
+            detail="Não é possível desativar o agente padrão",
         )
 
     agent_ref = config.agents.profiles[agentId]

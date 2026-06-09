@@ -185,7 +185,7 @@ export function ChannelDrawer({
               name="user_id"
               label="User ID"
               tooltip="Accepts a full MXID (e.g. @bot:matrix.org) or just the localpart (e.g. bot)."
-              rules={[{ required: true, message: "Please enter User ID" }]}
+              rules={[{ required: true, message: "Por favor, insira o ID de usuário" }]}
             >
               <Input placeholder="@bot:matrix.org" />
             </Form.Item>
@@ -207,7 +207,7 @@ export function ChannelDrawer({
               rules={[
                 {
                   required: !isMatrixPasswordAuth,
-                  message: "Please enter access token",
+                  message: "Por favor, insira o token de acesso",
                 },
               ]}
               hidden={isMatrixPasswordAuth}
@@ -220,7 +220,7 @@ export function ChannelDrawer({
               rules={[
                 {
                   required: isMatrixPasswordAuth,
-                  message: "Please enter password",
+                  message: "Por favor, insira a senha",
                 },
               ]}
               hidden={!isMatrixPasswordAuth}
@@ -956,7 +956,7 @@ export function ChannelDrawer({
             <Form.Item
               name="bot_id"
               label="Bot ID"
-              rules={[{ required: true, message: "Please input Bot ID" }]}
+              rules={[{ required: true, message: "Por favor, insira o ID do Bot" }]}
             >
               <Input placeholder="Bot ID from WeCom backend" />
             </Form.Item>
@@ -1016,7 +1016,7 @@ export function ChannelDrawer({
             <Form.Item
               name="agent_id"
               label="Agent ID"
-              rules={[{ required: true, message: "Please input Agent ID" }]}
+              rules={[{ required: true, message: "Por favor, insira o ID do Agente" }]}
             >
               <Input placeholder="Agent ID from XiaoYi platform" />
             </Form.Item>

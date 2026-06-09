@@ -1034,8 +1034,8 @@ async def audit_events_export(
     buf.write("﻿")
     writer = csv.writer(buf)
     writer.writerow([
-        "时间", "用户", "操作", "结果", "资源类型", "资源ID",
-        "来源IP", "详情",
+        "Horário", "Usuário", "Operação", "Resultado", "Tipo de Recurso", "ID do Recurso",
+        "IP de Origem", "Detalhes",
     ])
     for e in events:
         ts = e.get("timestamp", 0)
