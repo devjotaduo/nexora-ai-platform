@@ -137,3 +137,6 @@ src/.hypothesis/
 
 # Local duplicate drafts
 docs/*副本.md
+
+# Secrets — never commit
+.qwenpaw.secret/
