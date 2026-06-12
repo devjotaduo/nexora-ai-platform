@@ -122,6 +122,16 @@ sip = [
     "dashscope-realtime>=0.1.0",
     "audioop-lts; python_version >= '3.13'",
 ]
+whatsapp = [
+    # neonize-qwenpaw is a fork of krypton-byte/neonize with proto stubs
+    # regenerated against protoc 30.2 (gencode 6.30.2) so it cohabitates
+    # with the protobuf 6.x ecosystem that QwenPaw already depends on.
+    # Upstream neonize ships stubs compiled by protoc 32.1 (gencode 7.34.1)
+    # which would break grpcio-status, googleapis-common-protos, etc.
+    "neonize-qwenpaw>=0.3.16.1",
+    # QR code endpoint renders linking QR via segno.
+    "segno>=1.6.1",
+]
 sip-livekit = [
     "qwenpaw[sip]",
     "livekit>=1.0.0",

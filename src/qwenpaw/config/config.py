@@ -436,6 +436,21 @@ class WeChatConfig(BaseChannelConfig):
     message_merge_delay_ms: Optional[int] = 0
 
 
+class WhatsAppConfig(BaseChannelConfig):
+    """WhatsApp channel config (neonize backend)."""
+
+    auth_dir: str = ""
+    send_read_receipts: bool = True
+    self_chat_mode: bool = False
+    text_chunk_limit: int = 4096
+    groups: List[str] = Field(default_factory=list)
+    group_allow_from: List[str] = Field(default_factory=list)
+    ack_reaction_thinking: str = "🤔"
+    ack_reaction_done: str = "👀"
+    ack_reaction_error: str = "⚠️"
+    reply_to_trigger: bool = True
+
+
 class ChannelConfig(BaseModel):
     """Built-in channel configs; extra keys allowed for plugin channels."""
 
@@ -457,6 +472,7 @@ class ChannelConfig(BaseModel):
     xiaoyi: XiaoYiConfig = XiaoYiConfig()
     wechat: WeChatConfig = WeChatConfig()
     onebot: OneBotConfig = OneBotConfig()
+    whatsapp: WhatsAppConfig = WhatsAppConfig()
 
     @model_validator(mode="before")
     @classmethod

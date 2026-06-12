@@ -34,6 +34,7 @@ _BUILTIN_SPECS: dict[str, tuple[str, str]] = {
     "xiaoyi": (".xiaoyi", "XiaoYiChannel"),
     "wechat": (".wechat", "WeChatChannel"),
     "onebot": (".onebot", "OneBotChannel"),
+    "whatsapp": (".whatsapp", "WhatsAppChannel"),
 }
 
 # Required channels must load; failures are raised, not skipped.
