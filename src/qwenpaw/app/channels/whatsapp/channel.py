@@ -46,7 +46,6 @@ from ..base import (
     ProcessHandler,
     OutgoingContentPart,
 )
-from .events import WhatsAppMessageEvent, publish as publish_whatsapp_event
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +142,6 @@ class WhatsAppChannel(BaseChannel):
         enabled: bool = False,
         auth_dir: str = "",
         workspace_dir: Optional[Path] = None,
-        bot_prefix: str = "",
         on_reply_sent: OnReplySent = None,
         show_tool_details: bool = True,
         filter_tool_messages: bool = False,
@@ -159,8 +157,6 @@ class WhatsAppChannel(BaseChannel):
         ack_reaction_thinking: str = "🤔",
         ack_reaction_done: str = "👀",
         ack_reaction_error: str = "⚠️",
-        access_control_dm: bool = False,
-        access_control_group: bool = False,
         **kwargs,
     ):
         super().__init__(
@@ -174,11 +170,8 @@ class WhatsAppChannel(BaseChannel):
             allow_from=allow_from,
             deny_message=deny_message,
             require_mention=require_mention,
-            access_control_dm=access_control_dm,
-            access_control_group=access_control_group,
         )
         self.enabled = enabled
-        self.bot_prefix = bot_prefix
         self._workspace_dir = (
             Path(workspace_dir).expanduser() if workspace_dir else None
         )
@@ -256,7 +249,6 @@ class WhatsAppChannel(BaseChannel):
             enabled=bool(c.get("enabled", False)),
             auth_dir=c.get("auth_dir") or "",
             workspace_dir=workspace_dir,
-            bot_prefix=c.get("bot_prefix") or "",
             on_reply_sent=on_reply_sent,
             show_tool_details=show_tool_details,
             filter_tool_messages=filter_tool_messages,
@@ -275,8 +267,6 @@ class WhatsAppChannel(BaseChannel):
             ack_reaction_thinking=c.get("ack_reaction_thinking", "🤔"),
             ack_reaction_done=c.get("ack_reaction_done", "👀"),
             ack_reaction_error=c.get("ack_reaction_error", "⚠️"),
-            access_control_dm=c.get("access_control_dm", False),
-            access_control_group=c.get("access_control_group", False),
             groups=c.get("groups") or [],
             group_allow_from=c.get("group_allow_from") or [],
             reply_to_trigger=c.get("reply_to_trigger", True),
@@ -330,9 +320,6 @@ class WhatsAppChannel(BaseChannel):
         self.allow_from = set(c.get("allow_from") or [])
         self.deny_message = c.get("deny_message") or ""
         self.require_mention = c.get("require_mention", False)
-        self.bot_prefix = c.get("bot_prefix") or ""
-        self.access_control_dm = c.get("access_control_dm", False)
-        self.access_control_group = c.get("access_control_group", False)
         self._filter_tool_messages = c.get("filter_tool_messages", False)
         self._filter_thinking = c.get("filter_thinking", False)
 
@@ -1272,28 +1259,6 @@ class WhatsAppChannel(BaseChannel):
                     ),
                 )
 
-            agent_id = ""
-            if self._workspace is not None:
-                agent_id = getattr(self._workspace, "agent_id", "") or ""
-            if not is_group:
-                event = await publish_whatsapp_event(
-                    WhatsAppMessageEvent(
-                        direction="incoming",
-                        agent_id=agent_id,
-                        session_id=session_id,
-                        user_id=effective_sender,
-                        text=body or "",
-                        channel_meta=dict(channel_meta),
-                    ),
-                )
-                if not event.should_process:
-                    logger.info(
-                        "whatsapp: inbound message handled by observers; "
-                        "skipping agent processing session=%s",
-                        session_id,
-                    )
-                    return
-
             # Route through UnifiedQueueManager (via self._enqueue) so
             # each (whatsapp, session_id, priority) gets its own queue
             # and worker task. Messages from different chats process
@@ -1625,20 +1590,6 @@ class WhatsAppChannel(BaseChannel):
                     await self._client.send_message(jid, reply_built)
                 else:
                     await self._client.send_message(jid, chunk)
-                agent_id = ""
-                if self._workspace is not None:
-                    agent_id = getattr(self._workspace, "agent_id", "") or ""
-                if not meta.get("crm_skip_outgoing_event"):
-                    await publish_whatsapp_event(
-                        WhatsAppMessageEvent(
-                            direction="outgoing",
-                            agent_id=str(meta.get("agent_id") or agent_id),
-                            session_id=str(meta.get("session_id") or ""),
-                            user_id=str(meta.get("user_id") or to_handle),
-                            text=chunk,
-                            channel_meta=dict(meta),
-                        ),
-                    )
             except Exception as e:
                 logger.error("whatsapp: send failed: %s", e)
 
