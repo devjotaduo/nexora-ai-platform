@@ -1,5 +1,4 @@
 #:schema https://developers.openai.com/codex/config-schema.json
-
 # ECC Tools generated Codex baseline
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
@@ -27,6 +26,21 @@ args = ["-y", "@playwright/mcp@latest", "--extension"]
 [mcp_servers.sequential-thinking]
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+
+[mcp_servers.ruflo]
+command = "ruflo"
+args = [
+    "mcp",
+    "start",
+    "-t",
+    "stdio",
+    "--tools",
+    "all",
+]
+env_vars = [
+    "OPENAI_API_KEY",
+    "RUFLO_MCP_SERVER",
+]
 
 [features]
 multi_agent = true
